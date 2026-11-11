@@ -32,8 +32,14 @@ const createStatus = document.querySelector('#create-project-status');
 const updateStatus = document.querySelector('#update-project-status');
 const uploadStatus = document.querySelector('#upload-status');
 const progress = document.querySelector('#upload-progress');
+const leadList = document.querySelector('#lead-list');
+const leadSearch = document.querySelector('#lead-search');
+const leadStatusFilter = document.querySelector('#lead-status-filter');
+const leadStatuses = ['New', 'Contacted', 'Qualified', 'Won', 'Closed'];
 let projects = new Map();
+let leads = [];
 let stopProjects;
+let stopLeads;
 let isAdmin = false;
 
 function showStatus(element, message, isError = false) {
@@ -68,9 +74,129 @@ function selectProject(projectId) {
   updateForm.elements.paymentStatus.value = project.paymentStatus || 'Not provided';
   updateForm.elements.contractAmount.value = project.contractAmount ?? '';
   updateForm.elements.amountPaid.value = project.amountPaid ?? '';
+  updateForm.elements.progressPercent.value = project.progressPercent ?? '';
   updateForm.elements.estimatedDeliveryDays.value = project.estimatedDeliveryDays ?? '';
   showStatus(updateStatus, '');
   showStatus(uploadStatus, '');
+}
+
+function updateMetrics() {
+  const projectValues = [...projects.values()];
+  document.querySelector('#metric-projects').textContent = String(projectValues.length);
+  document.querySelector('#metric-active').textContent = String(projectValues.filter((project) => project.workStatus === 'In Progress').length);
+  document.querySelector('#metric-completed').textContent = String(projectValues.filter((project) => project.workStatus === 'Completed').length);
+  document.querySelector('#metric-leads').textContent = String(leads.length);
+}
+
+function renderLeads() {
+  const search = leadSearch.value.trim().toLowerCase();
+  const statusFilter = leadStatusFilter.value;
+  const filteredLeads = leads.filter((lead) => {
+    const status = lead.leadStatus || 'New';
+    const searchableText = [
+      lead.from_name,
+      lead.reply_to,
+      lead.phone,
+      lead.project_type,
+      lead.site_location,
+      lead.request_type,
+    ].join(' ').toLowerCase();
+    return (!statusFilter || status === statusFilter) && (!search || searchableText.includes(search));
+  });
+
+  leadList.replaceChildren();
+  if (!filteredLeads.length) {
+    const empty = document.createElement('p');
+    empty.className = 'portal-empty';
+    empty.textContent = leads.length ? 'No enquiries match these filters.' : 'Website enquiries will appear here when Firestore archiving is configured.';
+    leadList.append(empty);
+    return;
+  }
+
+  for (const lead of filteredLeads) {
+    const card = document.createElement('article');
+    card.className = 'lead-card';
+    const heading = document.createElement('div');
+    heading.className = 'lead-card-heading';
+    const title = document.createElement('h3');
+    title.textContent = lead.from_name || 'New enquiry';
+    const received = document.createElement('time');
+    const createdAt = lead.createdAt?.toDate?.();
+    received.textContent = createdAt
+      ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(createdAt)
+      : 'Date unavailable';
+    heading.append(title, received);
+
+    const summary = document.createElement('p');
+    summary.className = 'lead-summary';
+    summary.textContent = [lead.request_type, lead.project_type, lead.site_location].filter(Boolean).join(' · ') || 'Project enquiry';
+    const contact = document.createElement('div');
+    contact.className = 'lead-contact';
+    const email = document.createElement('a');
+    email.href = `mailto:${encodeURIComponent(lead.reply_to || '')}`;
+    email.textContent = lead.reply_to || 'No email provided';
+    contact.append(email);
+    if (lead.phone) {
+      const phone = document.createElement('span');
+      phone.textContent = lead.phone;
+      contact.append(phone);
+    }
+    const message = document.createElement('p');
+    message.className = 'lead-message';
+    message.textContent = lead.message || '';
+
+    const form = document.createElement('form');
+    form.className = 'lead-edit-form';
+    const statusLabel = document.createElement('label');
+    statusLabel.textContent = 'Follow-up status';
+    const statusSelect = document.createElement('select');
+    statusSelect.name = 'leadStatus';
+    for (const status of leadStatuses) {
+      const option = document.createElement('option');
+      option.value = status;
+      option.textContent = status;
+      statusSelect.append(option);
+    }
+    statusSelect.value = lead.leadStatus || 'New';
+    statusLabel.append(statusSelect);
+    const noteLabel = document.createElement('label');
+    noteLabel.textContent = 'Internal note';
+    const notes = document.createElement('textarea');
+    notes.name = 'adminNotes';
+    notes.rows = 2;
+    notes.maxLength = 2000;
+    notes.value = lead.adminNotes || '';
+    noteLabel.append(notes);
+    const save = document.createElement('button');
+    save.type = 'submit';
+    save.className = 'button button-outline-dark';
+    save.textContent = 'Save follow-up';
+    const saveStatus = document.createElement('span');
+    saveStatus.className = 'form-status';
+    saveStatus.setAttribute('role', 'status');
+    form.append(statusLabel, noteLabel, save, saveStatus);
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!isAdmin) return;
+      save.disabled = true;
+      showStatus(saveStatus, 'Saving...');
+      try {
+        await updateDoc(doc(db, 'inquiries', lead.id), {
+          leadStatus: statusSelect.value,
+          adminNotes: notes.value.trim(),
+        });
+        showStatus(saveStatus, 'Follow-up saved.');
+      } catch (error) {
+        console.error('Unable to update enquiry follow-up:', error);
+        showStatus(saveStatus, 'Follow-up could not be saved. Try again.', true);
+      } finally {
+        save.disabled = false;
+      }
+    });
+
+    card.append(heading, summary, contact, message, form);
+    leadList.append(card);
+  }
 }
 
 function refreshProjectPicker(snapshot) {
@@ -92,6 +218,7 @@ function refreshProjectPicker(snapshot) {
   }
   if (projects.has(selected)) projectPicker.value = selected;
   selectProject(projectPicker.value);
+  updateMetrics();
 }
 
 function watchProjects() {
@@ -99,6 +226,21 @@ function watchProjects() {
   stopProjects = onSnapshot(collection(db, 'projects'), refreshProjectPicker, (error) => {
     console.error('Unable to load admin projects:', error);
     showStatus(globalStatus, 'Project list could not be loaded. Check Firestore rules and try again.', true);
+  });
+}
+
+function watchLeads() {
+  stopLeads?.();
+  stopLeads = onSnapshot(collection(db, 'inquiries'), (snapshot) => {
+    leads = snapshot.docs
+      .map((item) => ({ id: item.id, ...item.data() }))
+      .sort((left, right) => (right.createdAt?.toMillis?.() || 0) - (left.createdAt?.toMillis?.() || 0));
+    updateMetrics();
+    renderLeads();
+  }, (error) => {
+    console.error('Unable to load website enquiries:', error);
+    leadList.textContent = 'Enquiries could not be loaded. Check Firestore rules and try again.';
+    showStatus(globalStatus, 'The enquiry CRM is unavailable. Deploy the latest Firestore rules to enable admin access.', true);
   });
 }
 
@@ -147,6 +289,8 @@ if (!firebaseReady) {
 
   document.querySelector('#admin-sign-out').addEventListener('click', () => signOut(auth));
   projectPicker.addEventListener('change', () => selectProject(projectPicker.value));
+  leadSearch.addEventListener('input', renderLeads);
+  leadStatusFilter.addEventListener('change', renderLeads);
   clearProjectForms();
 
   createForm.addEventListener('submit', async (event) => {
@@ -165,6 +309,7 @@ if (!firebaseReady) {
         paymentStatus: 'Not provided',
         contractAmount: null,
         amountPaid: null,
+        progressPercent: 0,
         estimatedDeliveryDays: null,
         currency: 'INR',
         createdAt: serverTimestamp(),
@@ -193,16 +338,19 @@ if (!firebaseReady) {
     const progressNote = String(formData.get('progressNote') || '').trim();
     const contractAmount = String(formData.get('contractAmount') || '').trim();
     const amountPaid = String(formData.get('amountPaid') || '').trim();
+    const progressPercent = String(formData.get('progressPercent') || '').trim();
     const estimatedDays = String(formData.get('estimatedDeliveryDays') || '').trim();
+    const workStatus = String(formData.get('workStatus'));
 
     try {
       await updateDoc(doc(db, 'projects', projectId), {
         projectName: String(formData.get('projectName')).trim(),
         siteAddress: String(formData.get('siteAddress')).trim(),
-        workStatus: String(formData.get('workStatus')),
+        workStatus,
         paymentStatus: String(formData.get('paymentStatus')),
         contractAmount: contractAmount ? Number(contractAmount) : null,
         amountPaid: amountPaid ? Number(amountPaid) : null,
+        progressPercent: workStatus === 'Completed' ? 100 : progressPercent ? Number(progressPercent) : null,
         estimatedDeliveryDays: estimatedDays ? Number(estimatedDays) : null,
         currency: 'INR',
         updatedAt: serverTimestamp(),
@@ -275,9 +423,15 @@ if (!firebaseReady) {
 
   onAuthStateChanged(auth, async (user) => {
     stopProjects?.();
+    stopLeads?.();
     stopProjects = undefined;
+    stopLeads = undefined;
     isAdmin = false;
     if (!user) {
+      projects = new Map();
+      leads = [];
+      updateMetrics();
+      leadList.replaceChildren();
       loginView.hidden = false;
       dashboard.hidden = true;
       return;
@@ -295,6 +449,7 @@ if (!firebaseReady) {
       dashboard.hidden = false;
       document.querySelector('#admin-email-label').textContent = user.email || '';
       watchProjects();
+      watchLeads();
     } catch (error) {
       console.error('Unable to verify admin role:', error);
       showStatus(loginStatus, 'Unable to verify administrator access. Sign in again.', true);

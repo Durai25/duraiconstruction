@@ -38,6 +38,17 @@ try {
       projectName: 'Alpha Residence',
       workStatus: 'In Progress',
     });
+    await setDoc(doc(context.firestore(), 'inquiries/inquiry-one'), {
+      from_name: 'Taylor Example',
+      reply_to: 'taylor@example.com',
+      phone: '+911234567890',
+      request_type: 'Project Enquiry',
+      project_type: 'Residential Construction',
+      site_location: 'Chennai',
+      preferred_date: '',
+      message: 'A new home project.',
+      createdAt: new Date(),
+    });
     await uploadBytes(
       ref(context.storage(), 'projects/project-alpha/site-photo.png'),
       new Uint8Array([137, 80, 78, 71]),
@@ -60,6 +71,17 @@ try {
   await assertFails(getDocs(collection(otherCustomer.firestore(), 'projects')));
   await assertFails(updateDoc(customerProject, { workStatus: 'Completed' }));
   await assertSucceeds(updateDoc(doc(admin.firestore(), 'projects/project-alpha'), { workStatus: 'Completed' }));
+  await assertSucceeds(getDoc(doc(admin.firestore(), 'inquiries/inquiry-one')));
+  await assertSucceeds(getDocs(collection(admin.firestore(), 'inquiries')));
+  await assertFails(getDoc(doc(customer.firestore(), 'inquiries/inquiry-one')));
+  await assertFails(getDocs(collection(customer.firestore(), 'inquiries')));
+  await assertSucceeds(updateDoc(doc(admin.firestore(), 'inquiries/inquiry-one'), {
+    leadStatus: 'Contacted',
+    adminNotes: 'Call scheduled.',
+  }));
+  await assertFails(updateDoc(doc(customer.firestore(), 'inquiries/inquiry-one'), { leadStatus: 'Won' }));
+  await assertFails(updateDoc(doc(admin.firestore(), 'inquiries/inquiry-one'), { leadStatus: 'Invalid' }));
+  await assertFails(updateDoc(doc(admin.firestore(), 'inquiries/inquiry-one'), { from_name: 'Changed name' }));
   await assertFails(addDoc(collection(customer.firestore(), 'projects/project-alpha/updates'), {
     message: 'Unauthorized update',
     media: [],

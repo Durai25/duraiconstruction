@@ -27,14 +27,18 @@ firebase use --add
 firebase deploy --only hosting,firestore:rules,storage
 ```
 
-When configured, project enquiries are archived in `inquiries` and career applications in `applications`. The rules allow validated creates only; public reads, updates and deletes are denied. Before production, enable Firebase App Check and monitor the collections for abuse.
+When configured, project enquiries are archived in `inquiries` and career applications in `applications`. Public reads, updates and deletes are denied. An authenticated admin can read enquiries and update only their CRM follow-up status and internal note; career applications remain write-only. Before production, enable Firebase App Check and monitor the collections for abuse.
+
+## Plan and visualize a project
+
+The homepage includes an illustrative INR cost estimator and an interactive isometric building concept viewer. The estimator's per-square-foot rate ranges and finish multipliers are in `project-tools.js`; replace them with verified company rates before publishing. The displayed range is for early planning only, not a quotation. The viewer is a conceptual massing illustration, not a construction drawing.
 
 ## Set up the customer and admin portal
 
-1. Enable **Email/Password** in Firebase Authentication and create customer accounts in the Firebase console. Send each customer a password reset email to set their password. Customer access is read-only and limited to project records assigned to that account's UID.
+1. Enable **Email/Password** and **Google** in Firebase Authentication. Add the deployed site domain under Authentication's authorized domains. Customers can sign in to `portal.html` with either provider; Google sign-in may create a new account. Customer access is read-only and limited to project records assigned to that account's UID, so make sure the project uses the UID of the account the customer signs in with. Admins continue to use email/password.
 2. Set `GOOGLE_CLOUD_PROJECT` to the Firebase project ID and authenticate a trusted administrator machine with Application Default Credentials. The authenticated identity needs Firebase Authentication user-management privileges.
 3. Grant an admin claim to an existing account with `npm install`, `gcloud auth application-default login`, and `GOOGLE_CLOUD_PROJECT=YOUR_PROJECT_ID npm run set-admin -- admin@example.com --grant`. Use `--revoke` to remove it. Never grant this claim from browser code. Admins must sign out and back in after a claim change.
-4. Open `admin.html`, sign in as the claimed admin, create a project with the customer's Auth UID, and maintain its work status, payment figures, handover estimate and progress notes. New project data appears in `portal.html`.
+4. Open `admin.html`, sign in as the claimed admin, create a project with the customer's Auth UID, and maintain its work status, payment figures, progress percentage, handover estimate and progress notes. Review website enquiries and save CRM follow-up statuses and internal notes in the admin desk. New project data appears in `portal.html`.
 5. Configure bucket CORS using `storage-cors.json`: replace `YOUR_HOSTING_DOMAIN` with the deployed site origin, then run `gcloud storage buckets update gs://YOUR_STORAGE_BUCKET --cors-file=storage-cors.json` using the exact bucket name from Firebase project settings.
 
 Project images and videos are stored under `projects/{projectId}/` in Firebase Storage. Admins can upload images up to 20 MB and videos under 100 MB. Storage rules restrict uploads to admins and reads to the admin or the customer assigned to that project.

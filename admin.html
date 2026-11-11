@@ -41,6 +41,12 @@
           <div><p class="eyebrow"><span></span> Administrator</p><h1>Project desk</h1><p class="portal-lede" id="admin-email-label"></p></div>
           <button class="button button-outline-dark" id="admin-sign-out" type="button">Sign out</button>
         </div>
+        <div class="admin-metrics" aria-label="Business overview">
+          <div><span>PROJECTS</span><strong id="metric-projects">0</strong></div>
+          <div><span>ACTIVE</span><strong id="metric-active">0</strong></div>
+          <div><span>COMPLETED</span><strong id="metric-completed">0</strong></div>
+          <div><span>ENQUIRIES</span><strong id="metric-leads">0</strong></div>
+        </div>
         <div class="admin-layout">
           <section class="admin-panel">
             <div class="admin-panel-heading"><span>01</span><h2>Link a customer project</h2></div>
@@ -66,6 +72,7 @@
                 <div><label for="payment-status">Payment status</label><select id="payment-status" name="paymentStatus"><option>Not provided</option><option>Unpaid</option><option>Partially paid</option><option>Paid</option></select></div>
                 <div><label for="contract-amount">Contract amount (INR)</label><input id="contract-amount" name="contractAmount" type="number" min="0" step="0.01" /></div>
                 <div><label for="amount-paid">Amount paid (INR)</label><input id="amount-paid" name="amountPaid" type="number" min="0" step="0.01" /></div>
+                <div><label for="progress-percent">Progress (%)</label><input id="progress-percent" name="progressPercent" type="number" min="0" max="100" step="1" /></div>
               </div>
               <label for="estimated-days">Estimated days to handover</label><input id="estimated-days" name="estimatedDeliveryDays" type="number" min="0" max="3650" step="1" />
               <label for="progress-note">Progress note <span class="optional-label">Optional</span></label><textarea id="progress-note" name="progressNote" rows="3" maxlength="2000" placeholder="Share a customer-facing site update..."></textarea>
@@ -84,6 +91,21 @@
               <progress id="upload-progress" max="100" value="0" hidden></progress>
               <p class="form-status" id="upload-status" role="status" aria-live="polite"></p>
             </form>
+          </section>
+
+          <section class="admin-panel admin-leads-panel">
+            <div class="admin-panel-heading"><span>04</span><h2>Enquiry CRM</h2></div>
+            <p class="admin-help">Review website enquiries and keep an internal follow-up status and note. Customer-facing project data stays in the project portal.</p>
+            <div class="lead-filters">
+              <label for="lead-search">Search enquiries</label>
+              <input id="lead-search" type="search" placeholder="Name, email, phone or project" />
+              <label for="lead-status-filter">Filter by status</label>
+              <select id="lead-status-filter">
+                <option value="">All statuses</option>
+                <option>New</option><option>Contacted</option><option>Qualified</option><option>Won</option><option>Closed</option>
+              </select>
+            </div>
+            <div class="lead-list" id="lead-list"><p class="portal-loading">Loading enquiries...</p></div>
           </section>
         </div>
         <p class="portal-global-status" id="admin-global-status" role="status" aria-live="polite"></p>

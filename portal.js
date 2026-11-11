@@ -1,7 +1,9 @@
 import {
+  GoogleAuthProvider,
   onAuthStateChanged,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
@@ -17,6 +19,7 @@ const loginView = document.querySelector('#login-view');
 const dashboardView = document.querySelector('#dashboard-view');
 const loginForm = document.querySelector('#login-form');
 const loginStatus = document.querySelector('#login-status');
+const googleSignInButton = document.querySelector('#google-sign-in');
 const globalStatus = document.querySelector('#portal-status');
 const projectList = document.querySelector('#project-list');
 const mediaStates = new Map();
@@ -34,6 +37,24 @@ const formatMoney = (amount, currency = 'INR') => new Intl.NumberFormat(undefine
   maximumFractionDigits: 2,
 }).format(Number(amount) || 0);
 
+function getProjectProgress(project) {
+  if (project.progressPercent == null || project.progressPercent === '') {
+    return project.workStatus === 'Completed' ? 100 : null;
+  }
+  const progress = Number(project.progressPercent);
+  if (Number.isFinite(progress) && progress >= 0 && progress <= 100) return progress;
+  return project.workStatus === 'Completed' ? 100 : null;
+}
+
+function updateProjectOverview(projects) {
+  const progressValues = projects.map(getProjectProgress).filter((value) => value !== null);
+  document.querySelector('#customer-project-count').textContent = String(projects.length);
+  document.querySelector('#customer-active-count').textContent = String(projects.filter((project) => project.workStatus === 'In Progress').length);
+  document.querySelector('#customer-average-progress').textContent = progressValues.length
+    ? `${Math.round(progressValues.reduce((total, value) => total + value, 0) / progressValues.length)}%`
+    : '—';
+}
+
 function clearProjectView() {
   stopProjects?.();
   stopProjects = undefined;
@@ -42,6 +63,9 @@ function clearProjectView() {
   for (const state of mediaStates.values()) clearMediaResources(state);
   mediaStates.clear();
   projectList.replaceChildren();
+  document.querySelector('#customer-project-count').textContent = '0';
+  document.querySelector('#customer-active-count').textContent = '0';
+  document.querySelector('#customer-average-progress').textContent = '—';
 }
 
 function clearMediaResources(state) {
@@ -91,11 +115,28 @@ function renderProject(projectId, project) {
   addDetail(details, 'Estimated days to handover', project.estimatedDeliveryDays == null ? 'To be confirmed' : `${project.estimatedDeliveryDays} days`);
   addDetail(details, 'Last updated', formatDate(project.updatedAt));
 
+  const progressPanel = document.createElement('section');
+  progressPanel.className = 'customer-progress';
+  const progressHeading = document.createElement('div');
+  progressHeading.className = 'customer-progress-heading';
+  const progressLabel = document.createElement('strong');
+  progressLabel.textContent = 'Project progress';
+  const progressText = document.createElement('span');
+  const progress = getProjectProgress(project);
+  progressText.textContent = progress === null ? 'Awaiting update' : `${progress}%`;
+  progressHeading.append(progressLabel, progressText);
+  const progressBar = document.createElement('progress');
+  progressBar.max = 100;
+  progressBar.value = progress ?? 0;
+  progressBar.setAttribute('aria-label', progress === null ? 'Project progress has not been reported' : `Project ${progress}% complete`);
+  progressBar.hidden = progress === null;
+  progressPanel.append(progressHeading, progressBar);
+
   const updates = document.createElement('div');
   updates.className = 'project-updates';
   updates.id = `updates-${projectId}`;
   updates.textContent = 'Loading site updates...';
-  card.append(heading, details, updates);
+  card.append(heading, details, progressPanel, updates);
   projectList.append(card);
   watchUpdates(projectId, updates);
 }
@@ -201,6 +242,7 @@ function showConfigurationError() {
   loginStatus.textContent = 'Firebase is not configured. Add your project settings before enabling customer sign-in.';
   loginStatus.classList.add('error');
   loginForm.querySelector('button[type="submit"]').disabled = true;
+  googleSignInButton.disabled = true;
 }
 
 if (!firebaseReady) {
@@ -219,6 +261,37 @@ if (!firebaseReady) {
       console.error('Customer sign in failed:', error);
       loginStatus.textContent = 'Sign in failed. Check your email and password, then try again.';
       loginStatus.classList.add('error');
+    }
+  });
+
+  googleSignInButton.addEventListener('click', async () => {
+    loginStatus.classList.remove('error');
+    loginStatus.textContent = 'Connecting to Google...';
+    try {
+      await signInWithPopup(auth, new GoogleAuthProvider());
+    } catch (error) {
+      console.error('Google customer sign in failed:', error);
+      if (error.code === 'auth/popup-closed-by-user') {
+        loginStatus.textContent = 'Google sign-in was cancelled.';
+      } else if (error.code === 'auth/popup-blocked') {
+        loginStatus.textContent = 'Allow pop-ups for this site to continue with Google.';
+        loginStatus.classList.add('error');
+      } else if (error.code === 'auth/account-exists-with-different-credential') {
+        loginStatus.textContent = 'This email already uses another sign-in method. Sign in with that method instead.';
+        loginStatus.classList.add('error');
+      } else if (error.code === 'auth/operation-not-allowed') {
+        loginStatus.textContent = 'Google sign-in is not enabled for this Firebase project.';
+        loginStatus.classList.add('error');
+      } else if (error.code === 'auth/unauthorized-domain') {
+        loginStatus.textContent = 'This site domain is not authorized for Google sign-in in Firebase.';
+        loginStatus.classList.add('error');
+      } else if (error.code === 'auth/invalid-credential') {
+        loginStatus.textContent = 'Google sign-in could not be verified. Check the Firebase Google provider settings and try again.';
+        loginStatus.classList.add('error');
+      } else {
+        loginStatus.textContent = 'Google sign-in failed. Please try again.';
+        loginStatus.classList.add('error');
+      }
     }
   });
 
@@ -267,6 +340,8 @@ if (!firebaseReady) {
         for (const state of mediaStates.values()) clearMediaResources(state);
         mediaStates.clear();
         projectList.replaceChildren();
+        const projectData = snapshot.docs.map((project) => project.data());
+        updateProjectOverview(projectData);
         if (snapshot.empty) {
           const empty = document.createElement('p');
           empty.className = 'portal-empty';

@@ -21,6 +21,7 @@
       <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav" aria-label="Open navigation"><span></span><span></span></button>
       <nav class="main-nav" id="main-nav" aria-label="Main navigation">
         <a href="#services">Services</a>
+        <a href="#project-tools">Project tools</a>
         <a href="#work">Our work</a>
         <a href="#about">About us</a>
         <a href="careers.html">Careers</a>
@@ -101,6 +102,77 @@
         </div>
       </section>
 
+      <section class="project-tools section-pad" id="project-tools">
+        <div class="section-heading">
+          <div><p class="eyebrow"><span></span> Plan your next build</p><h2>Start with a<br /><em>clearer picture.</em></h2></div>
+          <p>Explore an early budget range and a simple interactive building concept before speaking with our team.</p>
+        </div>
+        <div class="tool-grid">
+          <section class="tool-card estimator-card" aria-labelledby="estimator-title">
+            <div class="tool-card-heading"><span>01 / BUDGET PLANNER</span><h3 id="estimator-title">Construction cost estimator</h3></div>
+            <p class="tool-intro">Adjust the project basics to get an early planning range. Your final cost depends on the site, drawings, materials and agreed scope.</p>
+            <div class="estimator-form">
+              <div class="estimator-field estimator-field-wide">
+                <label for="estimate-type">Project type</label>
+                <select id="estimate-type" name="projectType">
+                  <option value="residential">Residential construction</option>
+                  <option value="commercial">Commercial construction</option>
+                  <option value="industrial">Industrial construction</option>
+                  <option value="renovation">Renovation</option>
+                </select>
+              </div>
+              <div class="estimator-field">
+                <label for="estimate-area">Built-up area <span>(sq. ft.)</span></label>
+                <input id="estimate-area" name="area" type="number" min="200" max="50000" step="50" value="1200" required />
+              </div>
+              <div class="estimator-field">
+                <label for="estimate-finish">Finish level</label>
+                <select id="estimate-finish" name="finish">
+                  <option value="standard">Standard</option>
+                  <option value="enhanced">Enhanced</option>
+                  <option value="premium">Premium</option>
+                </select>
+              </div>
+            </div>
+            <div class="estimate-result" aria-live="polite">
+              <span class="estimate-label">Illustrative project range</span>
+              <div><strong id="estimate-low">—</strong><span>to</span><strong id="estimate-high">—</strong></div>
+              <p id="estimate-rate"></p>
+            </div>
+            <p class="tool-disclaimer">Indicative only; not a quotation. Example rates are configurable in <code>project-tools.js</code> and must be confirmed against current company pricing before publishing.</p>
+            <button class="button button-orange" id="estimate-to-enquiry" type="button">Discuss this estimate <span aria-hidden="true">↗</span></button>
+          </section>
+
+          <section class="tool-card visualizer-card" aria-labelledby="visualizer-title">
+            <div class="tool-card-heading"><span>02 / CONCEPT VIEWER</span><h3 id="visualizer-title">3D building visualization</h3></div>
+            <p class="tool-intro">Explore a simple massing concept. It is an illustration, not a construction drawing or architectural plan.</p>
+            <svg class="building-model" id="building-model" viewBox="0 0 360 260" role="img" aria-labelledby="building-model-title building-model-description">
+              <title id="building-model-title">Interactive isometric building concept</title>
+              <desc id="building-model-description">A conceptual building model that changes with the selected type, floor count and view angle.</desc>
+              <g id="building-scene" aria-hidden="true"></g>
+            </svg>
+            <div class="visualizer-controls">
+              <div>
+                <label for="model-type">Building type</label>
+                <select id="model-type">
+                  <option value="residential">Residential</option>
+                  <option value="commercial">Commercial</option>
+                  <option value="industrial">Industrial</option>
+                </select>
+              </div>
+              <div>
+                <label for="model-floors">Floors <output id="model-floors-value" for="model-floors">2</output></label>
+                <input id="model-floors" type="range" min="1" max="5" value="2" />
+              </div>
+              <div>
+                <label for="model-angle">View angle <output id="model-angle-value" for="model-angle">35°</output></label>
+                <input id="model-angle" type="range" min="-60" max="60" value="35" />
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
       <section class="work section-pad" id="work">
         <div class="section-heading work-heading">
           <div><p class="eyebrow light"><span></span> Selected projects</p><h2>Work that<br /><em>speaks for itself.</em></h2></div>
@@ -170,8 +242,9 @@
     <footer class="site-footer">
       <a class="brand footer-brand" href="#top"><span class="brand-mark" aria-hidden="true">D<span>/</span></span><span class="brand-name">DURAI<span>CONSTRUCTION</span></span></a>
       <p>Grounded in craft.<br />Focused on what lasts.</p>
-      <div class="footer-links"><a href="#services">Services</a><a href="#work">Our work</a><a href="#about">About</a><a href="careers.html">Careers</a><a href="portal.html">Client login</a><a href="#contact">Contact</a></div>
+      <div class="footer-links"><a href="#services">Services</a><a href="#project-tools">Project tools</a><a href="#work">Our work</a><a href="#about">About</a><a href="careers.html">Careers</a><a href="portal.html">Client login</a><a href="#contact">Contact</a></div>
       <span class="copyright">© <span id="year"></span> Durai Construction</span>
     </footer>
+    <script type="module" src="project-tools.js"></script>
   </body>
 </html>

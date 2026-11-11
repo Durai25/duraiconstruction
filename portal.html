@@ -25,6 +25,11 @@
         <p class="eyebrow"><span></span> Customer access</p>
         <h1>Your project,<br /><em>in progress.</em></h1>
         <p class="portal-lede">Sign in to see the latest site updates, progress photos, payments and estimated handover timeline.</p>
+        <button class="button button-google" id="google-sign-in" type="button">
+          <span class="google-mark" aria-hidden="true">G</span>
+          Continue with Google
+        </button>
+        <p class="portal-divider"><span>or sign in with email</span></p>
         <form class="portal-form" id="login-form">
           <label for="login-email">Email address</label>
           <input id="login-email" name="email" type="email" autocomplete="username" required placeholder="you@example.com" />
@@ -42,6 +47,11 @@
         <div class="portal-dashboard-heading">
           <div><p class="eyebrow"><span></span> Customer portal</p><h1>Your projects</h1><p class="portal-lede" id="customer-email"></p></div>
           <button class="button button-outline-dark" id="sign-out" type="button">Sign out</button>
+        </div>
+        <div class="portal-overview" aria-label="Project overview">
+          <div><span>YOUR PROJECTS</span><strong id="customer-project-count">0</strong></div>
+          <div><span>IN PROGRESS</span><strong id="customer-active-count">0</strong></div>
+          <div><span>AVERAGE PROGRESS</span><strong id="customer-average-progress">—</strong></div>
         </div>
         <div class="portal-project-list" id="project-list"><p class="portal-loading">Loading your projects...</p></div>
       </section>

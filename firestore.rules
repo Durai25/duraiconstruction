@@ -44,7 +44,13 @@ service cloud.firestore {
         && request.resource.data.site_location.size() <= 300
         && request.resource.data.preferred_date is string
         && request.resource.data.preferred_date.size() <= 20;
-      allow read, update, delete: if false;
+      allow read: if isAdmin();
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leadStatus', 'adminNotes'])
+        && request.resource.data.get('leadStatus', 'New') in ['New', 'Contacted', 'Qualified', 'Won', 'Closed']
+        && request.resource.data.get('adminNotes', '') is string
+        && request.resource.data.get('adminNotes', '').size() <= 2000;
+      allow delete: if false;
     }
 
     match /applications/{applicationId} {
