@@ -1,0 +1,26 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "firestore.rules",
+      "storage.rules",
+      "storage-cors.json",
+      "README.md",
+      "package.json",
+      "package-lock.json",
+      "scripts/**",
+      "firebase-debug.log",
+      "firestore-debug.log",
+      "ui-debug.log",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}

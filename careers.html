@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#18372f" />
+    <meta name="description" content="Explore career opportunities with Durai Construction and share your experience with our team." />
+    <title>Careers | Durai Construction</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <header class="site-header" id="top">
+      <a class="brand" href="index.html" aria-label="Durai Construction home">
+        <span class="brand-mark" aria-hidden="true">D<span>/</span></span>
+        <span class="brand-name">DURAI<span>CONSTRUCTION</span></span>
+      </a>
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav" aria-label="Open navigation"><span></span><span></span></button>
+      <nav class="main-nav" id="main-nav" aria-label="Main navigation">
+        <a href="index.html#services">Services</a>
+        <a href="index.html#work">Our work</a>
+        <a href="index.html#about">About us</a>
+        <a href="careers.html" aria-current="page">Careers</a>
+        <a href="portal.html">Client login</a>
+        <a class="nav-contact" href="#apply">Send your profile <span aria-hidden="true">↗</span></a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero career-hero" aria-labelledby="hero-title">
+        <img class="hero-image" src="https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=2200&q=88" alt="Active civil construction site with workers and heavy equipment" fetchpriority="high" />
+        <div class="hero-shade"></div>
+        <div class="hero-content">
+          <p class="eyebrow light"><span></span> Careers · Durai Construction</p>
+          <h1 id="hero-title">Build the<br /><em>next chapter.</em></h1>
+          <p class="hero-copy">Bring your craft to work that matters. We value people who take ownership, look out for their team and care about getting the details right.</p>
+          <div class="hero-actions">
+            <a class="button button-orange" href="#apply">Share your experience <span aria-hidden="true">↗</span></a>
+            <a class="text-link light-link" href="#opportunities">Explore work areas <span aria-hidden="true">↓</span></a>
+          </div>
+        </div>
+        <div class="hero-caption"><span>CAREERS / DURAI CONSTRUCTION</span><span>Good work is built together.</span></div>
+        <div class="hero-stamp" aria-hidden="true"><span>GROW</span><strong>WITH</strong><span>OUR TEAM</span></div>
+      </section>
+
+      <section class="career-intro section-pad">
+        <div><p class="eyebrow"><span></span> Work with purpose</p><h2>Make your mark<br /><em>on the ground.</em></h2></div>
+        <div class="career-intro-copy"><p>Construction is a team effort. We bring together practical skills, sound planning and a shared respect for the work. Whether you are on site or supporting a project behind the scenes, your contribution matters.</p><p>We aim to build an environment where people communicate clearly, work safely and keep learning from every project.</p></div>
+      </section>
+
+      <section class="career-opportunities section-pad" id="opportunities">
+        <div class="section-heading">
+          <div><p class="eyebrow"><span></span> Where you fit</p><h2>Bring your<br /><em>kind of expertise.</em></h2></div>
+          <p>Project needs change over time. We welcome interest across these areas and will be in touch if a suitable opportunity comes up.</p>
+        </div>
+        <div class="role-list">
+          <article><span>01</span><div><h3>Site engineering &amp; supervision</h3><p>Coordinate day-to-day execution, quality checks and safe site operations.</p></div><span class="role-mark" aria-hidden="true">↗</span></article>
+          <article><span>02</span><div><h3>Skilled trades &amp; specialist work</h3><p>Bring hands-on experience and dependable craft to the details that make a build.</p></div><span class="role-mark" aria-hidden="true">↗</span></article>
+          <article><span>03</span><div><h3>Estimation &amp; project coordination</h3><p>Help teams plan clearly, manage resources and keep projects moving.</p></div><span class="role-mark" aria-hidden="true">↗</span></article>
+        </div>
+      </section>
+
+      <section class="career-values section-pad">
+        <div class="career-values-heading"><p class="eyebrow light"><span></span> The way we work</p><h2>Good teams make<br /><em>better work.</em></h2></div>
+        <div class="value-grid">
+          <article><span>01</span><h3>Safety is shared</h3><p>We look out for one another and make safe work part of every decision.</p></article>
+          <article><span>02</span><h3>Respect the craft</h3><p>We value practical knowledge, careful work and people who take pride in both.</p></article>
+          <article><span>03</span><h3>Keep learning</h3><p>Every project is a chance to improve how we plan, collaborate and deliver.</p></article>
+        </div>
+      </section>
+
+      <section class="contact section-pad" id="apply">
+        <div class="contact-intro"><p class="eyebrow light"><span></span> Join the conversation</p><h2>Tell us what<br />you bring.</h2><p>Share a little about your experience and the work you are interested in. Our team will keep your details in mind as project needs evolve.</p><div class="contact-details"><span>Site engineering &amp; supervision</span><span>Skilled trades &amp; specialist work</span><span>Estimation &amp; coordination</span></div></div>
+        <form class="inquiry-form" id="careers-form">
+          <div class="form-heading"><span>CAREER ENQUIRY</span><span class="required-note">* Required</span></div>
+          <label for="career-name">Your name <span>*</span></label><input id="career-name" name="name" autocomplete="name" required maxlength="100" placeholder="Name" />
+          <div class="form-row"><div><label for="career-email">Email address <span>*</span></label><input id="career-email" name="email" type="email" autocomplete="email" required maxlength="160" placeholder="you@example.com" /></div><div><label for="career-phone">Phone number</label><input id="career-phone" name="phone" type="tel" autocomplete="tel" maxlength="30" placeholder="+91" /></div></div>
+          <label for="experience-area">Area of experience <span>*</span></label><select id="experience-area" name="experienceArea" required><option value="">Select an area</option><option>Site engineering &amp; supervision</option><option>Skilled trades &amp; specialist work</option><option>Estimation &amp; project coordination</option><option>Other</option></select>
+          <label for="portfolio-url">Resume or profile link</label><input id="portfolio-url" name="portfolioUrl" type="url" maxlength="500" placeholder="https://" />
+          <label for="career-message">Tell us about your experience <span>*</span></label><textarea id="career-message" name="message" required maxlength="2000" rows="3" placeholder="Your skills, experience and the kind of work you are looking for..."></textarea>
+          <button class="button button-orange form-submit" type="submit">Send profile <span aria-hidden="true">↗</span></button>
+          <p class="form-status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <a class="brand footer-brand" href="index.html"><span class="brand-mark" aria-hidden="true">D<span>/</span></span><span class="brand-name">DURAI<span>CONSTRUCTION</span></span></a>
+      <p>Grounded in craft.<br />Focused on what lasts.</p>
+      <div class="footer-links"><a href="index.html#services">Services</a><a href="index.html#work">Our work</a><a href="index.html#about">About</a><a href="careers.html">Careers</a><a href="portal.html">Client login</a><a href="index.html#contact">Contact</a></div>
+      <span class="copyright">© <span id="year"></span> Durai Construction</span>
+    </footer>
+  </body>
+</html>

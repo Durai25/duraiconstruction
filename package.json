@@ -1,0 +1,17 @@
+{
+  "name": "durai-construction-site-tools",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "set-admin": "node scripts/set-admin-claim.mjs",
+    "test:rules": "firebase emulators:exec --project demo-durai --only firestore,storage \"node scripts/test-rules.mjs\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
+    "firebase": "^13.2.0",
+    "firebase-admin": "^14.5.0"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "^1.14.7"
+  }
+}

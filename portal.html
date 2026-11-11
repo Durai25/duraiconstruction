@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#18372f" />
+    <meta name="description" content="Sign in to view your Durai Construction project status, updates, and progress media." />
+    <title>Customer Portal | Durai Construction</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="portal.js"></script>
+  </head>
+  <body class="portal-page">
+    <header class="portal-header">
+      <a class="brand" href="index.html" aria-label="Durai Construction home">
+        <span class="brand-mark" aria-hidden="true">D<span>/</span></span>
+        <span class="brand-name">DURAI<span>CONSTRUCTION</span></span>
+      </a>
+      <a class="portal-back" href="index.html">Back to site <span aria-hidden="true">↗</span></a>
+    </header>
+    <main class="portal-shell">
+      <section class="portal-login" id="login-view">
+        <p class="eyebrow"><span></span> Customer access</p>
+        <h1>Your project,<br /><em>in progress.</em></h1>
+        <p class="portal-lede">Sign in to see the latest site updates, progress photos, payments and estimated handover timeline.</p>
+        <form class="portal-form" id="login-form">
+          <label for="login-email">Email address</label>
+          <input id="login-email" name="email" type="email" autocomplete="username" required placeholder="you@example.com" />
+          <label for="login-password">Password</label>
+          <input id="login-password" name="password" type="password" autocomplete="current-password" required minlength="6" placeholder="Your password" />
+          <button class="button button-orange" type="submit">Sign in <span aria-hidden="true">↗</span></button>
+          <button class="portal-text-button" id="reset-password" type="button">Send password reset email</button>
+          <p class="form-status" id="login-status" role="status" aria-live="polite"></p>
+        </form>
+        <p class="portal-help">Your Durai Construction team will provide your customer account access.</p>
+        <a class="portal-admin-link" href="admin.html">Administrator sign in</a>
+      </section>
+
+      <section class="portal-dashboard" id="dashboard-view" hidden>
+        <div class="portal-dashboard-heading">
+          <div><p class="eyebrow"><span></span> Customer portal</p><h1>Your projects</h1><p class="portal-lede" id="customer-email"></p></div>
+          <button class="button button-outline-dark" id="sign-out" type="button">Sign out</button>
+        </div>
+        <div class="portal-project-list" id="project-list"><p class="portal-loading">Loading your projects...</p></div>
+      </section>
+      <p class="portal-global-status" id="portal-status" role="status" aria-live="polite"></p>
+    </main>
+    <footer class="portal-footer">© <span id="year"></span> Durai Construction</footer>
+  </body>
+</html>

@@ -1,0 +1,80 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.get('admin', false) == true;
+    }
+
+    function isProjectCustomer(projectId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/projects/$(projectId))
+        && get(/databases/$(database)/documents/projects/$(projectId)).data.customerId == request.auth.uid;
+    }
+
+    function validContact() {
+      return request.resource.data.from_name is string
+        && request.resource.data.from_name.size() > 0
+        && request.resource.data.from_name.size() <= 100
+        && request.resource.data.reply_to is string
+        && request.resource.data.reply_to.size() > 0
+        && request.resource.data.reply_to.size() <= 160
+        && request.resource.data.phone is string
+        && request.resource.data.phone.size() <= 30
+        && request.resource.data.message is string
+        && request.resource.data.message.size() > 0
+        && request.resource.data.message.size() <= 2000
+        && request.resource.data.createdAt == request.time;
+    }
+
+    match /inquiries/{inquiryId} {
+      allow create: if validContact()
+        && request.resource.data.keys().hasOnly([
+          'from_name', 'reply_to', 'phone', 'request_type', 'project_type', 'site_location', 'preferred_date', 'message', 'createdAt'
+        ])
+        && request.resource.data.request_type in [
+          'Project Enquiry', 'Site Visit Request', 'Free Quotation Request'
+        ]
+        && request.resource.data.project_type is string
+        && request.resource.data.project_type.size() <= 100
+        && request.resource.data.site_location is string
+        && request.resource.data.site_location.size() <= 300
+        && request.resource.data.preferred_date is string
+        && request.resource.data.preferred_date.size() <= 20;
+      allow read, update, delete: if false;
+    }
+
+    match /applications/{applicationId} {
+      allow create: if validContact()
+        && request.resource.data.keys().hasOnly([
+          'from_name', 'reply_to', 'phone', 'experience_area', 'portfolio_url', 'message', 'createdAt'
+        ])
+        && request.resource.data.experience_area is string
+        && request.resource.data.experience_area.size() > 0
+        && request.resource.data.experience_area.size() <= 100
+        && request.resource.data.portfolio_url is string
+        && request.resource.data.portfolio_url.size() <= 500;
+      allow read, update, delete: if false;
+    }
+
+    match /projects/{projectId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.customerId == request.auth.uid);
+      allow create, update, delete: if isAdmin();
+
+      match /updates/{updateId} {
+        allow read: if isAdmin() || isProjectCustomer(projectId);
+        allow create: if isAdmin()
+          && request.resource.data.keys().hasOnly(['message', 'media', 'createdAt'])
+          && request.resource.data.message is string
+          && request.resource.data.message.size() <= 2000
+          && request.resource.data.media is list
+          && request.resource.data.media.size() <= 8
+          && request.resource.data.createdAt == request.time;
+        allow update, delete: if isAdmin();
+      }
+    }
+  }
+}

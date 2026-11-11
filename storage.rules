@@ -1,0 +1,23 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAdmin() {
+      return request.auth != null && request.auth.token.get('admin', false) == true;
+    }
+
+    function isProjectCustomer(projectId) {
+      return request.auth != null
+        && firestore.exists(/databases/(default)/documents/projects/$(projectId))
+        && firestore.get(/databases/(default)/documents/projects/$(projectId)).data.customerId == request.auth.uid;
+    }
+
+    match /projects/{projectId}/{filePath=**} {
+      allow read: if isAdmin() || isProjectCustomer(projectId);
+      allow create, update: if isAdmin()
+        && request.resource.size < 100 * 1024 * 1024
+        && (request.resource.contentType.matches('image/.*')
+          || request.resource.contentType.matches('video/.*'));
+      allow delete: if isAdmin();
+    }
+  }
+}

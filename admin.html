@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#18372f" />
+    <meta name="description" content="Durai Construction project administration." />
+    <title>Admin Portal | Durai Construction</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="admin.js"></script>
+  </head>
+  <body class="portal-page">
+    <header class="portal-header">
+      <a class="brand" href="index.html" aria-label="Durai Construction home">
+        <span class="brand-mark" aria-hidden="true">D<span>/</span></span>
+        <span class="brand-name">DURAI<span>CONSTRUCTION</span></span>
+      </a>
+      <a class="portal-back" href="portal.html">Customer portal <span aria-hidden="true">↗</span></a>
+    </header>
+    <main class="portal-shell admin-shell">
+      <section class="portal-login" id="admin-login-view">
+        <p class="eyebrow"><span></span> Authorized access</p>
+        <h1>Project<br /><em>management.</em></h1>
+        <p class="portal-lede">Sign in with an administrator account to manage customer projects and site updates.</p>
+        <form class="portal-form" id="admin-login-form">
+          <label for="admin-email">Administrator email</label>
+          <input id="admin-email" name="email" type="email" autocomplete="username" required placeholder="admin@example.com" />
+          <label for="admin-password">Password</label>
+          <input id="admin-password" name="password" type="password" autocomplete="current-password" required minlength="6" placeholder="Password" />
+          <button class="button button-orange" type="submit">Admin sign in <span aria-hidden="true">↗</span></button>
+          <button class="portal-text-button" id="admin-reset-password" type="button">Send password reset email</button>
+          <p class="form-status" id="admin-login-status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="admin-dashboard" id="admin-dashboard" hidden>
+        <div class="portal-dashboard-heading">
+          <div><p class="eyebrow"><span></span> Administrator</p><h1>Project desk</h1><p class="portal-lede" id="admin-email-label"></p></div>
+          <button class="button button-outline-dark" id="admin-sign-out" type="button">Sign out</button>
+        </div>
+        <div class="admin-layout">
+          <section class="admin-panel">
+            <div class="admin-panel-heading"><span>01</span><h2>Link a customer project</h2></div>
+            <p class="admin-help">Create the customer account in Firebase Authentication first, then paste its user UID here.</p>
+            <form class="portal-form" id="create-project-form">
+              <label for="customer-uid">Customer user UID</label><input id="customer-uid" name="customerUid" required maxlength="128" />
+              <label for="new-project-name">Project name</label><input id="new-project-name" name="projectName" required maxlength="120" />
+              <label for="new-site-address">Site address</label><input id="new-site-address" name="siteAddress" required maxlength="300" />
+              <button class="button button-orange" type="submit">Create project <span aria-hidden="true">↗</span></button>
+              <p class="form-status" id="create-project-status" role="status" aria-live="polite"></p>
+            </form>
+          </section>
+
+          <section class="admin-panel">
+            <div class="admin-panel-heading"><span>02</span><h2>Update project</h2></div>
+            <label for="project-picker">Choose a project</label>
+            <select class="admin-select" id="project-picker"><option value="">Loading projects...</option></select>
+            <form class="portal-form" id="update-project-form">
+              <label for="edit-project-name">Project name</label><input id="edit-project-name" name="projectName" required maxlength="120" />
+              <label for="edit-site-address">Site address</label><input id="edit-site-address" name="siteAddress" required maxlength="300" />
+              <div class="admin-form-grid">
+                <div><label for="work-status">Work status</label><select id="work-status" name="workStatus"><option>Planning</option><option>In Progress</option><option>On Hold</option><option>Completed</option></select></div>
+                <div><label for="payment-status">Payment status</label><select id="payment-status" name="paymentStatus"><option>Not provided</option><option>Unpaid</option><option>Partially paid</option><option>Paid</option></select></div>
+                <div><label for="contract-amount">Contract amount (INR)</label><input id="contract-amount" name="contractAmount" type="number" min="0" step="0.01" /></div>
+                <div><label for="amount-paid">Amount paid (INR)</label><input id="amount-paid" name="amountPaid" type="number" min="0" step="0.01" /></div>
+              </div>
+              <label for="estimated-days">Estimated days to handover</label><input id="estimated-days" name="estimatedDeliveryDays" type="number" min="0" max="3650" step="1" />
+              <label for="progress-note">Progress note <span class="optional-label">Optional</span></label><textarea id="progress-note" name="progressNote" rows="3" maxlength="2000" placeholder="Share a customer-facing site update..."></textarea>
+              <button class="button button-orange" type="submit">Save project update <span aria-hidden="true">↗</span></button>
+              <p class="form-status" id="update-project-status" role="status" aria-live="polite"></p>
+            </form>
+          </section>
+
+          <section class="admin-panel admin-media-panel">
+            <div class="admin-panel-heading"><span>03</span><h2>Upload site media</h2></div>
+            <p class="admin-help">Add progress photos or videos to the selected customer's project. Images up to 20 MB and videos up to 99 MB.</p>
+            <form class="portal-form" id="upload-media-form">
+              <label for="media-files">Photos or videos</label><input id="media-files" name="mediaFiles" type="file" accept="image/*,video/*" multiple required />
+              <label for="media-caption">Update caption</label><textarea id="media-caption" name="caption" rows="3" maxlength="1000" placeholder="What should the customer know about this update?"></textarea>
+              <button class="button button-orange" type="submit">Upload to project <span aria-hidden="true">↗</span></button>
+              <progress id="upload-progress" max="100" value="0" hidden></progress>
+              <p class="form-status" id="upload-status" role="status" aria-live="polite"></p>
+            </form>
+          </section>
+        </div>
+        <p class="portal-global-status" id="admin-global-status" role="status" aria-live="polite"></p>
+      </section>
+    </main>
+    <footer class="portal-footer">© <span id="year"></span> Durai Construction</footer>
+  </body>
+</html>
