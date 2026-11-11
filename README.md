@@ -43,7 +43,24 @@ The homepage includes an illustrative INR cost estimator and an interactive isom
 
 Project images and videos are stored under `projects/{projectId}/` in Firebase Storage. Admins can upload images up to 20 MB and videos under 100 MB. Storage rules restrict uploads to admins and reads to the admin or the customer assigned to that project.
 
+The admin desk opens to six section tiles for attendance, finance, projects, customers, site updates and enquiries; select a tile to view that section, then return to the tiles to switch sections. Attendance includes a month-by-month employee book showing each employee's daily present/leave marks and monthly totals, plus a daily register to add records. Select a date and record each employee's name, work section, location, attendance status and daily wage. The daily overview shows present headcount by location, leave count and wage spend for employees marked present. Records are stored in the admin-only `employeeAttendance` Firestore collection; deploy the included Firestore rules before using the register.
+
 Run the Firestore and Storage permission tests with `npm run test:rules` after installing the Firebase CLI and npm dependencies.
+
+## Seed temporary admin and customer data
+
+If you are using the Spark plan and do not have local Cloud credentials, use the browser-based Firestore seeder instead of the Admin SDK route.
+
+1. Open the app in a browser.
+2. Load the seed page at `http://localhost:5173/seed-demo-firestore.html` via a local web server.
+3. Click the button to create temporary admin and customer data.
+4. Use these demo details for sign-in:
+   - Admin: `admin@durai-demo.com`
+   - Customer: `customer@durai-demo.com`
+
+The seed creates sample records in `admins`, `customers`, `projects`, `projects/{projectId}/updates`, and `inquiries`.
+
+> If Firestore rules block the writes, temporarily allow `create` for testing or use the Firebase console in test mode before running the seed again.
 
 ## Connect EmailJS
 

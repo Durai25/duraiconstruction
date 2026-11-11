@@ -8,12 +8,16 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
   collection,
+  doc,
+  getDoc,
+  getDocs,
   onSnapshot,
   query,
   where,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { getBlob, ref } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
 import { auth, db, firebaseReady, storage } from './firebase-client.js';
+import { isAdminRecord } from './admin-role.js';
 
 const loginView = document.querySelector('#login-view');
 const dashboardView = document.querySelector('#dashboard-view');
@@ -53,6 +57,37 @@ function updateProjectOverview(projects) {
   document.querySelector('#customer-average-progress').textContent = progressValues.length
     ? `${Math.round(progressValues.reduce((total, value) => total + value, 0) / progressValues.length)}%`
     : '—';
+}
+
+async function verifyAdminAccess(user) {
+  if (!user) return false;
+
+  try {
+    const token = await user.getIdTokenResult();
+    if (token.claims.admin === true) return true;
+  } catch (error) {
+    console.warn('Unable to read admin custom claims:', error);
+  }
+
+  const checks = [];
+  if (user.uid) checks.push(getDoc(doc(db, 'admins', user.uid)));
+  if (user.email) {
+    checks.push(getDocs(query(collection(db, 'admins'), where('email', '==', user.email.trim().toLowerCase()))));
+    checks.push(getDocs(query(collection(db, 'admins'), where('uid', '==', user.uid))));
+  }
+
+  for (const result of await Promise.all(checks)) {
+    if (result && result.exists && result.exists()) {
+      if (isAdminRecord(result.data())) return true;
+      continue;
+    }
+
+    for (const adminDoc of result?.docs || []) {
+      if (isAdminRecord(adminDoc.data())) return true;
+    }
+  }
+
+  return false;
 }
 
 function clearProjectView() {
@@ -325,8 +360,8 @@ if (!firebaseReady) {
     }
 
     try {
-      const token = await user.getIdTokenResult();
-      if (token.claims.admin === true) {
+      const isAuthorizedAdmin = await verifyAdminAccess(user);
+      if (isAuthorizedAdmin) {
         window.location.replace('admin.html');
         return;
       }

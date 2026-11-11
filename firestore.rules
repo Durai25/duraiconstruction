@@ -6,7 +6,10 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return signedIn() && request.auth.token.get('admin', false) == true;
+      return signedIn() && (
+        request.auth.token.get('admin', false) == true
+        || exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
     }
 
     function isProjectCustomer(projectId) {
@@ -28,6 +31,23 @@ service cloud.firestore {
         && request.resource.data.message.size() > 0
         && request.resource.data.message.size() <= 2000
         && request.resource.data.createdAt == request.time;
+    }
+
+    match /admins/{adminId} {
+      allow read: if signedIn() && (
+        request.auth.token.get('admin', false) == true
+        || request.auth.uid == resource.data.uid
+        || request.auth.token.email == resource.data.email
+      );
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.role in ['administrator', 'admin'];
+      allow update, delete: if signedIn() && (
+        request.auth.token.get('admin', false) == true
+        || request.auth.uid == resource.data.uid
+        || request.auth.token.email == resource.data.email
+      );
     }
 
     match /inquiries/{inquiryId} {
@@ -81,6 +101,33 @@ service cloud.firestore {
           && request.resource.data.createdAt == request.time;
         allow update, delete: if isAdmin();
       }
+    }
+
+    match /employeeAttendance/{attendanceId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'employeeName', 'section', 'location', 'status', 'dailyWage', 'workDate', 'recordedAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'employeeName', 'section', 'location', 'status', 'dailyWage', 'workDate', 'recordedAt'
+        ])
+        && request.resource.data.employeeName is string
+        && request.resource.data.employeeName.size() > 0
+        && request.resource.data.employeeName.size() <= 120
+        && request.resource.data.section is string
+        && request.resource.data.section.size() > 0
+        && request.resource.data.section.size() <= 80
+        && request.resource.data.location is string
+        && request.resource.data.location.size() > 0
+        && request.resource.data.location.size() <= 200
+        && request.resource.data.status in ['Present', 'Leave']
+        && request.resource.data.dailyWage is number
+        && request.resource.data.dailyWage >= 0
+        && request.resource.data.workDate is string
+        && request.resource.data.workDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.recordedAt == request.time;
+      allow update, delete: if isAdmin();
     }
   }
 }
