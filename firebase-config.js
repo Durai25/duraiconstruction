@@ -1,8 +1,8 @@
 export const firebaseConfig = {
-  apiKey: 'YOUR_API_KEY',
-  authDomain: 'YOUR_PROJECT_ID.firebaseapp.com',
-  projectId: 'YOUR_PROJECT_ID',
-  storageBucket: 'YOUR_STORAGE_BUCKET',
-  messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
-  appId: 'YOUR_APP_ID',
+  apiKey: 'AIzaSyBZQ1Bdf3bW5VnpMQbyoESxItsUuMNcppk',
+  authDomain: 'durai-construct.firebaseapp.com',
+  projectId: 'durai-construct',
+  storageBucket: 'durai-construct.firebasestorage.app',
+  messagingSenderId: '690314430319',
+  appId: '1:690314430319:web:c2b35582e3a9c2842e4a9a',
 };
