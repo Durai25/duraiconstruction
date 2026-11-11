@@ -78,21 +78,31 @@
             <button class="button button-outline-dark" id="admin-section-back" type="button">← All sections</button>
             <h2 id="admin-section-title" tabindex="-1"></h2>
           </div>
+          <nav class="attendance-section-switcher" id="attendance-section-switcher" aria-label="Attendance views" hidden>
+            <button class="attendance-section-button" type="button" data-attendance-view-button="attendance" aria-pressed="true">Attendance</button>
+            <button class="attendance-section-button" type="button" data-attendance-view-button="payroll" aria-pressed="false">Payroll / employee details</button>
+          </nav>
           <div class="admin-metrics" aria-label="Business overview" data-admin-section-detail="projects">
             <div><span>PROJECTS</span><strong id="metric-projects">0</strong></div>
             <div><span>ACTIVE</span><strong id="metric-active">0</strong></div>
             <div><span>COMPLETED</span><strong id="metric-completed">0</strong></div>
             <div><span>ENQUIRIES</span><strong id="metric-leads">0</strong></div>
           </div>
-        <section class="admin-panel workforce-overview" id="attendance-overview" data-admin-section-detail="attendance" aria-labelledby="workforce-heading">
+        <section class="admin-panel workforce-overview" id="attendance-overview" data-admin-section-detail="attendance" data-attendance-view-panel="attendance" aria-labelledby="workforce-heading">
           <div class="admin-panel-heading"><span>01</span><h2 id="workforce-heading">Workforce overview</h2></div>
           <label class="workforce-date-label" for="attendance-date">Attendance date</label>
           <input class="workforce-date" id="attendance-date" type="date" />
+          <p class="admin-help attendance-book-help">Select today or any previous date to review and edit its attendance.</p>
           <div class="workforce-summary-grid">
             <section class="workforce-summary-section">
               <h3>Attendance</h3>
               <strong id="attendance-working-count">0</strong>
-              <span>people working</span>
+              <span>present today</span>
+            </section>
+            <section class="workforce-summary-section">
+              <h3>Absent</h3>
+              <strong id="attendance-absent-count">0</strong>
+              <span>people absent</span>
             </section>
             <section class="workforce-summary-section">
               <h3>Locations</h3>
@@ -111,11 +121,42 @@
             </section>
           </div>
         </section>
-        <section class="admin-panel attendance-book-panel" data-admin-section-detail="attendance">
-          <div class="admin-panel-heading"><span>02</span><h2>Monthly attendance book</h2></div>
+        <section class="admin-panel employee-directory-panel" data-admin-section-detail="attendance" data-attendance-view-panel="payroll">
+          <div class="admin-panel-heading"><span>02</span><h2>Employee details</h2></div>
+          <p class="admin-help">Personal identity and bank details are available to administrators only and are masked in the employee list.</p>
+          <form class="portal-form employee-form" id="employee-form">
+            <div class="employee-form-grid">
+              <div><label for="employee-name">Employee full name</label><input id="employee-name" name="employeeName" required maxlength="120" autocomplete="off" /></div>
+              <div><label for="employee-father-name">Father name</label><input id="employee-father-name" name="fatherName" required maxlength="120" /></div>
+              <div><label for="employee-mother-name">Mother name</label><input id="employee-mother-name" name="motherName" required maxlength="120" /></div>
+              <div><label for="employee-family-size">Family size</label><input id="employee-family-size" name="familySize" type="number" min="1" step="1" required /></div>
+              <div class="employee-form-wide"><label for="employee-address">Residential address</label><textarea id="employee-address" name="address" rows="3" maxlength="500" required></textarea></div>
+              <div><label for="employee-aadhaar">Aadhaar number</label><input id="employee-aadhaar" name="aadhaarNumber" inputmode="numeric" pattern="[0-9]{12}" maxlength="12" autocomplete="off" required /></div>
+              <div><label for="employee-pan">PAN number</label><input id="employee-pan" name="panNumber" pattern="[A-Za-z]{5}[0-9]{4}[A-Za-z]" maxlength="10" autocapitalize="characters" autocomplete="off" required /></div>
+              <div><label for="employee-bank-account">Bank account number</label><input id="employee-bank-account" name="bankAccountNumber" inputmode="numeric" pattern="[0-9]{6,18}" maxlength="18" autocomplete="off" required /></div>
+              <div><label for="employee-ifsc">Bank IFSC</label><input id="employee-ifsc" name="ifscCode" pattern="[A-Za-z]{4}0[A-Za-z0-9]{6}" maxlength="11" autocapitalize="characters" autocomplete="off" required /></div>
+              <div><label for="employee-mobile">Mobile number</label><input id="employee-mobile" name="mobileNumber" type="tel" inputmode="tel" pattern="[+]?[0-9]{10,15}" maxlength="16" required /></div>
+              <div><label for="employee-emergency-mobile">Emergency mobile number</label><input id="employee-emergency-mobile" name="emergencyMobileNumber" type="tel" inputmode="tel" pattern="[+]?[0-9]{10,15}" maxlength="16" required /></div>
+              <div><label for="employee-has-bike">Does the employee have a bike?</label><select id="employee-has-bike" name="hasBike" required><option value="">Select</option><option value="true">Yes</option><option value="false">No</option></select></div>
+              <div><label for="employee-has-licence">Does the employee have a valid licence?</label><select id="employee-has-licence" name="hasValidLicence" required><option value="">Select</option><option value="true">Yes</option><option value="false">No</option></select></div>
+            </div>
+            <datalist id="employee-directory-names"></datalist>
+            <button class="button button-orange" type="submit">Add employee</button>
+            <button class="button button-outline-dark employee-cancel-edit" id="employee-cancel-edit" type="button" hidden>Cancel edit</button>
+            <p class="form-status" id="employee-status" role="status" aria-live="polite"></p>
+          </form>
+          <div class="customer-table-wrap employee-directory-table-wrap">
+            <table class="customer-table employee-directory-table">
+              <thead><tr><th>Employee</th><th>Mobile</th><th>Aadhaar</th><th>PAN</th><th>Bank account</th><th>Family</th><th>Bike</th><th>Valid licence</th><th>Action</th></tr></thead>
+              <tbody id="employee-directory-list"><tr><td colspan="9">Loading employees...</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="admin-panel attendance-book-panel" data-admin-section-detail="attendance" data-attendance-view-panel="attendance">
+          <div class="admin-panel-heading"><span>03</span><h2>Monthly attendance book</h2></div>
           <label class="workforce-date-label" for="attendance-book-month">Attendance month</label>
           <input class="workforce-date" id="attendance-book-month" type="month" />
-          <p class="admin-help attendance-book-help">One row per employee, grouped by work section. P = present, L = leave, and — = no record.</p>
+          <p class="admin-help attendance-book-help">One row per employee, grouped by work section. P = present, A = absent, L = leave, and — = no record.</p>
           <p class="attendance-book-count" id="attendance-book-count" aria-live="polite">Loading employee attendance...</p>
           <div class="customer-table-wrap attendance-book-wrap">
             <table class="customer-table attendance-book-table">
@@ -125,24 +166,55 @@
             </table>
           </div>
         </section>
-        <section class="admin-panel attendance-register-panel" data-admin-section-detail="attendance">
-          <div class="admin-panel-heading"><span>03</span><h2>Daily attendance register</h2></div>
-          <p class="admin-help">Record each employee’s work section, site location, attendance, and daily wage. Wages are counted only for employees marked present.</p>
+        <section class="admin-panel employee-payroll-panel" data-admin-section-detail="attendance" data-attendance-view-panel="payroll">
+          <div class="admin-panel-heading"><span>04</span><h2>Employee earnings &amp; payouts</h2></div>
+          <p class="admin-help">Earnings are calculated from present attendance in the selected attendance-book month. A payout's date and time are recorded automatically.</p>
+          <p class="attendance-book-count">Payroll month: <strong id="employee-payout-month"></strong></p>
+          <form class="portal-form employee-payout-form" id="employee-payout-form">
+            <label for="employee-payout-name">Employee name</label>
+            <input id="employee-payout-name" name="employeeName" list="employee-directory-names" required maxlength="120" autocomplete="off" />
+            <div class="admin-form-grid">
+              <div><label for="employee-payout-amount">Payout amount (INR)</label><input id="employee-payout-amount" name="amount" type="number" min="0.01" step="0.01" required /></div>
+              <div><label for="employee-payout-mode">Mode of payment</label><select id="employee-payout-mode" name="paymentMode" required><option value="Cash">Cash</option><option value="Bank transfer">Bank transfer</option><option value="UPI">UPI</option><option value="Cheque">Cheque</option><option value="Other">Other</option></select></div>
+            </div>
+            <button class="button button-orange" type="submit">Record payout</button>
+            <p class="form-status" id="employee-payout-status" role="status" aria-live="polite"></p>
+          </form>
+          <h3 class="attendance-subheading">Employee earnings and balances</h3>
+          <div class="customer-table-wrap attendance-payroll-wrap">
+            <table class="customer-table attendance-payroll-table">
+              <thead><tr><th>Employee ledger</th><th>Work section</th><th>Earned</th><th>Paid</th><th>Balance / advance</th></tr></thead>
+              <tbody id="employee-payroll-summary"><tr><td colspan="5">Loading payroll...</td></tr></tbody>
+              <tfoot id="employee-payroll-totals"></tfoot>
+            </table>
+          </div>
+          <h3 class="attendance-subheading">Payout history</h3>
+          <div class="customer-table-wrap attendance-payout-wrap">
+            <table class="customer-table attendance-payout-table">
+              <thead><tr><th>Employee</th><th>Amount</th><th>Payment mode</th><th>Date &amp; time</th></tr></thead>
+              <tbody id="employee-payout-history"><tr><td colspan="4">Loading payouts...</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="admin-panel attendance-register-panel" data-admin-section-detail="attendance" data-attendance-view-panel="attendance">
+          <div class="admin-panel-heading"><span>05</span><h2>Daily attendance register</h2></div>
+          <p class="admin-help">Choose any date to view, add, or correct attendance. Wages are counted only for employees marked present.</p>
           <form class="portal-form attendance-form" id="attendance-form">
             <label for="attendance-employee">Employee name</label>
-            <input id="attendance-employee" name="employeeName" required maxlength="120" autocomplete="off" />
+            <input id="attendance-employee" name="employeeName" list="employee-directory-names" required maxlength="120" autocomplete="off" />
             <div class="admin-form-grid">
               <div><label for="attendance-section">Work section</label><input id="attendance-section" name="section" required maxlength="80" placeholder="e.g. Masonry" /></div>
               <div><label for="attendance-location">Work location</label><input id="attendance-location" name="location" required maxlength="200" placeholder="Site or project location" /></div>
-              <div><label for="attendance-status">Attendance</label><select id="attendance-status" name="status"><option value="Present">Present</option><option value="Leave">Leave</option></select></div>
+              <div><label for="attendance-status">Attendance</label><select id="attendance-status" name="status"><option value="Present">Present</option><option value="Absent">Absent</option><option value="Leave">Leave</option></select></div>
               <div><label for="attendance-daily-wage">Daily wage (INR)</label><input id="attendance-daily-wage" name="dailyWage" type="number" min="0" step="0.01" required /></div>
             </div>
             <button class="button button-orange" type="submit">Add attendance <span aria-hidden="true">↗</span></button>
+            <button class="button button-outline-dark attendance-cancel-edit" id="attendance-cancel-edit" type="button" hidden>Cancel edit</button>
             <p class="form-status" id="attendance-status-message" role="status" aria-live="polite"></p>
           </form>
           <div class="customer-table-wrap attendance-table-wrap">
             <table class="customer-table attendance-table">
-              <thead><tr><th>Employee</th><th>Work section</th><th>Location</th><th>Status</th><th>Daily wage</th><th>Action</th></tr></thead>
+              <thead><tr><th>Employee</th><th>Work section</th><th>Location</th><th>Status</th><th>Daily wage</th><th>Actions</th></tr></thead>
               <tbody id="attendance-record-list"><tr><td colspan="6">Loading attendance...</td></tr></tbody>
             </table>
           </div>
@@ -152,12 +224,12 @@
         </div>
         <div class="admin-layout">
           <section class="admin-panel" data-admin-section-detail="projects">
-            <div class="admin-panel-heading"><span>04</span><h2 id="project-section">Project dashboard</h2></div>
+            <div class="admin-panel-heading"><span>06</span><h2 id="project-section">Project dashboard</h2></div>
             <div class="admin-summary-grid slim" id="project-dashboard-panel" aria-label="Project dashboard overview"></div>
           </section>
 
           <section class="admin-panel" data-admin-section-detail="customers">
-            <div class="admin-panel-heading"><span>05</span><h2 id="customers-section">All customers</h2></div>
+            <div class="admin-panel-heading"><span>07</span><h2 id="customers-section">All customers</h2></div>
             <div class="customer-table-wrap">
               <table class="customer-table">
                 <thead>
@@ -169,17 +241,17 @@
           </section>
 
           <section class="admin-panel" data-admin-section-detail="projects">
-            <div class="admin-panel-heading"><span>06</span><h2>Data visualisation</h2></div>
+            <div class="admin-panel-heading"><span>08</span><h2>Data visualisation</h2></div>
             <div class="chart-bars" id="project-chart" aria-label="Project status chart"></div>
           </section>
 
           <section class="admin-panel" data-admin-section-detail="finance">
-            <div class="admin-panel-heading"><span>07</span><h2 id="finance-section">Financial statements &amp; CRM</h2></div>
+            <div class="admin-panel-heading"><span>09</span><h2 id="finance-section">Financial statements &amp; CRM</h2></div>
             <div class="finance-grid" id="finance-summary-grid" aria-label="Financial statements and CRM summary"></div>
           </section>
 
           <section class="admin-panel" data-admin-section-detail="projects">
-            <div class="admin-panel-heading"><span>08</span><h2>Link a customer project</h2></div>
+            <div class="admin-panel-heading"><span>10</span><h2>Link a customer project</h2></div>
             <p class="admin-help">Create the customer account in Firebase Authentication first, then paste its user UID here.</p>
             <form class="portal-form" id="create-project-form">
               <label for="customer-uid">Customer user UID</label><input id="customer-uid" name="customerUid" required maxlength="128" />
@@ -191,7 +263,7 @@
           </section>
 
           <section class="admin-panel" data-admin-section-detail="projects">
-            <div class="admin-panel-heading"><span>09</span><h2>Update project</h2></div>
+            <div class="admin-panel-heading"><span>11</span><h2>Update project</h2></div>
             <label for="project-picker">Choose a project</label>
             <select class="admin-select" id="project-picker"><option value="">Loading projects...</option></select>
             <form class="portal-form" id="update-project-form">
@@ -201,9 +273,20 @@
                 <div><label for="work-status">Work status</label><select id="work-status" name="workStatus"><option>Planning</option><option>In Progress</option><option>On Hold</option><option>Completed</option></select></div>
                 <div><label for="payment-status">Payment status</label><select id="payment-status" name="paymentStatus"><option>Not provided</option><option>Unpaid</option><option>Partially paid</option><option>Paid</option></select></div>
                 <div><label for="contract-amount">Contract amount (INR)</label><input id="contract-amount" name="contractAmount" type="number" min="0" step="0.01" /></div>
-                <div><label for="amount-paid">Amount paid (INR)</label><input id="amount-paid" name="amountPaid" type="number" min="0" step="0.01" /></div>
+                <div><label for="amount-paid">Paid to date (INR)</label><input id="amount-paid" name="amountPaid" type="number" readonly /></div>
                 <div><label for="progress-percent">Progress (%)</label><input id="progress-percent" name="progressPercent" type="number" min="0" max="100" step="1" /></div>
               </div>
+              <h3 class="admin-subheading">Record an installment</h3>
+              <p class="admin-help">Record each installment when it is received so its server date and time are accurate. Each payment can be saved only once.</p>
+              <div class="admin-form-grid">
+                <div><label for="installment-1">Installment 1 (INR)</label><input id="installment-1" name="installment1" type="number" min="0.01" step="0.01" /></div>
+                <div><label for="installment-2">Installment 2 (INR)</label><input id="installment-2" name="installment2" type="number" min="0.01" step="0.01" /></div>
+                <div><label for="installment-3">Installment 3 (INR)</label><input id="installment-3" name="installment3" type="number" min="0.01" step="0.01" /></div>
+              </div>
+              <section class="project-activity" aria-label="Project activity">
+                <h3>Project activity</h3>
+                <ol class="project-activity-list" id="project-activity"><li>Select a project to view its activity.</li></ol>
+              </section>
               <label for="estimated-days">Estimated days to handover</label><input id="estimated-days" name="estimatedDeliveryDays" type="number" min="0" max="3650" step="1" />
               <label for="progress-note">Progress note <span class="optional-label">Optional</span></label><textarea id="progress-note" name="progressNote" rows="3" maxlength="2000" placeholder="Share a customer-facing site update..."></textarea>
               <button class="button button-orange" type="submit">Save project update <span aria-hidden="true">↗</span></button>
@@ -212,7 +295,7 @@
           </section>
 
           <section class="admin-panel admin-media-panel" data-admin-section-detail="site-updates">
-            <div class="admin-panel-heading"><span>10</span><h2 id="site-updates-section">Upload site media</h2></div>
+            <div class="admin-panel-heading"><span>12</span><h2 id="site-updates-section">Upload site media</h2></div>
             <p class="admin-help">Add progress photos or videos to the selected customer's project. Images up to 20 MB and videos up to 99 MB.</p>
             <form class="portal-form" id="upload-media-form">
               <label for="media-files">Photos or videos</label><input id="media-files" name="mediaFiles" type="file" accept="image/*,video/*" multiple required />
@@ -224,7 +307,7 @@
           </section>
 
           <section class="admin-panel admin-leads-panel" data-admin-section-detail="enquiries">
-            <div class="admin-panel-heading"><span>11</span><h2 id="enquiries-section">Enquiry CRM</h2></div>
+            <div class="admin-panel-heading"><span>13</span><h2 id="enquiries-section">Enquiry CRM</h2></div>
             <p class="admin-help">Review website enquiries and keep an internal follow-up status and note. Customer-facing project data stays in the project portal.</p>
             <div class="lead-filters">
               <label for="lead-search">Search enquiries</label>
@@ -243,6 +326,28 @@
         <p class="portal-global-status" id="admin-global-status" role="status" aria-live="polite"></p>
       </section>
     </main>
+    <dialog class="employee-ledger-dialog" id="employee-ledger-dialog" aria-labelledby="employee-ledger-title">
+      <div class="employee-ledger-heading">
+        <div>
+          <p class="employee-ledger-eyebrow">EMPLOYEE STATEMENT</p>
+          <h2 id="employee-ledger-title"></h2>
+          <p id="employee-ledger-period"></p>
+        </div>
+        <form method="dialog"><button class="button button-outline-dark" type="submit">Close</button></form>
+      </div>
+      <div class="employee-ledger-summary" aria-label="Statement totals">
+        <div><span>Total earnings</span><strong id="employee-ledger-earnings"></strong></div>
+        <div><span>Total payouts</span><strong id="employee-ledger-payouts"></strong></div>
+        <div><span>Closing balance</span><strong id="employee-ledger-balance"></strong></div>
+      </div>
+      <div class="customer-table-wrap employee-ledger-table-wrap">
+        <table class="customer-table employee-ledger-table">
+          <thead><tr><th>Date</th><th>Description</th><th>Credit</th><th>Debit</th><th>Balance</th></tr></thead>
+          <tbody id="employee-ledger-entries"><tr><td colspan="5">Select an employee to view the ledger.</td></tr></tbody>
+        </table>
+      </div>
+      <p class="admin-help employee-ledger-help">Daily wages are credited on attendance dates. Payouts show the recorded payment date, time, and mode.</p>
+    </dialog>
     <footer class="portal-footer">© <span id="year"></span> Durai Construction</footer>
   </body>
 </html>

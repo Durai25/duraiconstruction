@@ -28,7 +28,7 @@ const globalStatus = document.querySelector('#portal-status');
 const projectList = document.querySelector('#project-list');
 const mediaStates = new Map();
 let stopProjects;
-let stopUpdates = new Map();
+let stopActivity = new Map();
 
 const formatDate = (timestamp) => {
   if (!timestamp?.toDate) return 'Not updated yet';
@@ -93,8 +93,8 @@ async function verifyAdminAccess(user) {
 function clearProjectView() {
   stopProjects?.();
   stopProjects = undefined;
-  for (const unsubscribe of stopUpdates.values()) unsubscribe();
-  stopUpdates = new Map();
+  for (const unsubscribe of stopActivity.values()) unsubscribe();
+  stopActivity = new Map();
   for (const state of mediaStates.values()) clearMediaResources(state);
   mediaStates.clear();
   projectList.replaceChildren();
@@ -167,13 +167,14 @@ function renderProject(projectId, project) {
   progressBar.hidden = progress === null;
   progressPanel.append(progressHeading, progressBar);
 
-  const updates = document.createElement('div');
-  updates.className = 'project-updates';
-  updates.id = `updates-${projectId}`;
-  updates.textContent = 'Loading site updates...';
-  card.append(heading, details, progressPanel, updates);
+  const activity = document.createElement('section');
+  activity.className = 'project-activity';
+  activity.id = `activity-${projectId}`;
+  activity.setAttribute('aria-label', 'Project activity');
+  activity.textContent = 'Loading project activity...';
+  card.append(heading, details, progressPanel, activity);
   projectList.append(card);
-  watchUpdates(projectId, updates);
+  watchProjectActivity(projectId, activity);
 }
 
 function renderMedia(container, media, state) {
@@ -225,10 +226,13 @@ function renderMedia(container, media, state) {
   }
 }
 
-function watchUpdates(projectId, container) {
-  stopUpdates.get(projectId)?.();
-  const updateQuery = collection(db, 'projects', projectId, 'updates');
-  const unsubscribe = onSnapshot(updateQuery, (snapshot) => {
+function watchProjectActivity(projectId, container) {
+  stopActivity.get(projectId)?.();
+  const sources = { payments: [], updates: [], changes: [] };
+  const errors = new Set();
+  const subscriptions = [];
+
+  function renderActivity() {
     let mediaState = mediaStates.get(container);
     if (!mediaState) {
       mediaState = { generation: 0, observers: new Set(), urls: new Set() };
@@ -236,41 +240,96 @@ function watchUpdates(projectId, container) {
     }
     clearMediaResources(mediaState);
     container.replaceChildren();
-    const updates = snapshot.docs
-      .map((document) => ({ id: document.id, ...document.data() }))
-      .sort((left, right) => (right.createdAt?.toMillis?.() || 0) - (left.createdAt?.toMillis?.() || 0));
-
     const title = document.createElement('h3');
-    title.textContent = 'Site updates';
+    title.textContent = 'Project activity';
     container.append(title);
-    if (!updates.length) {
+
+    if (errors.size) {
+      const warning = document.createElement('p');
+      warning.className = 'project-activity-empty';
+      warning.textContent = 'Some activity is temporarily unavailable.';
+      container.append(warning);
+    }
+
+    const events = [
+      ...sources.payments.map((payment) => ({
+        id: `payment-${payment.id}`,
+        title: 'Payment received',
+        message: `Installment ${payment.installment}: ${formatMoney(payment.amount)}`,
+        createdAt: payment.paidAt,
+      })),
+      ...sources.updates.map((update) => ({
+        id: `update-${update.id}`,
+        title: 'Site update',
+        message: update.message || 'Project progress update',
+        media: update.media || [],
+        createdAt: update.createdAt,
+      })),
+      ...sources.changes.map((change) => ({
+        id: `change-${change.id}`,
+        title: change.type === 'project_created' ? 'Project created' : 'Project details changed',
+        message: change.message || 'Project details updated',
+        createdAt: change.createdAt,
+      })),
+    ].sort((left, right) =>
+      (right.createdAt?.toMillis?.() || 0) - (left.createdAt?.toMillis?.() || 0),
+    );
+
+    if (!events.length) {
       const empty = document.createElement('p');
-      empty.textContent = 'Your project updates will appear here.';
+      empty.className = 'project-activity-empty';
+      empty.textContent = 'No activity has been recorded yet.';
       container.append(empty);
       return;
     }
 
-    for (const update of updates) {
+    const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+    for (const event of events) {
       const entry = document.createElement('article');
-      entry.className = 'project-update';
-      const date = document.createElement('time');
-      date.textContent = formatDate(update.createdAt);
-      const note = document.createElement('p');
-      note.textContent = update.message || 'Project progress update';
-      entry.append(date, note);
-      if (update.media?.length) {
+      entry.className = 'project-activity-entry';
+      const heading = document.createElement('div');
+      heading.className = 'project-activity-heading';
+      const eventTitle = document.createElement('strong');
+      eventTitle.textContent = event.title;
+      const time = document.createElement('time');
+      const date = event.createdAt?.toDate?.();
+      time.textContent = date ? dateTimeFormatter.format(date) : 'Timestamp pending';
+      heading.append(eventTitle, time);
+      const message = document.createElement('p');
+      message.textContent = event.message;
+      entry.append(heading, message);
+      container.append(entry);
+
+      if (event.media?.length) {
         const mediaGrid = document.createElement('div');
         mediaGrid.className = 'update-media-grid';
         entry.append(mediaGrid);
-        renderMedia(mediaGrid, update.media, mediaState);
+        renderMedia(mediaGrid, event.media, mediaState);
       }
-      container.append(entry);
     }
-  }, (error) => {
-    console.error('Unable to load project updates:', error);
-    container.textContent = 'Project updates are temporarily unavailable.';
-  });
-  stopUpdates.set(projectId, unsubscribe);
+  }
+
+  const sourceCollections = [
+    ['payments', collection(db, 'projects', projectId, 'payments'), 'Unable to load project payments:'],
+    ['updates', collection(db, 'projects', projectId, 'updates'), 'Unable to load site updates:'],
+    ['changes', collection(db, 'projects', projectId, 'activity'), 'Unable to load project changes:'],
+  ];
+  for (const [source, sourceCollection, errorMessage] of sourceCollections) {
+    const unsubscribe = onSnapshot(sourceCollection, (snapshot) => {
+      sources[source] = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+      errors.delete(source);
+      renderActivity();
+    }, (error) => {
+      console.error(errorMessage, error);
+      errors.add(source);
+      renderActivity();
+    });
+    subscriptions.push(unsubscribe);
+  }
+  stopActivity.set(projectId, () => subscriptions.forEach((unsubscribe) => unsubscribe()));
 }
 
 function showConfigurationError() {
@@ -370,8 +429,8 @@ if (!firebaseReady) {
       document.querySelector('#customer-email').textContent = user.email || '';
       const customerProjects = query(collection(db, 'projects'), where('customerId', '==', user.uid));
       stopProjects = onSnapshot(customerProjects, (snapshot) => {
-        for (const unsubscribe of stopUpdates.values()) unsubscribe();
-        stopUpdates = new Map();
+        for (const unsubscribe of stopActivity.values()) unsubscribe();
+        stopActivity = new Map();
         for (const state of mediaStates.values()) clearMediaResources(state);
         mediaStates.clear();
         projectList.replaceChildren();

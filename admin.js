@@ -14,9 +14,11 @@ import {
   getDocs,
   onSnapshot,
   query,
+  runTransaction,
   serverTimestamp,
   updateDoc,
   where,
+  writeBatch,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import {
   ref,
@@ -26,8 +28,10 @@ import { auth, db, firebaseReady, storage } from './firebase-client.js';
 import { isAdminRecord } from './admin-role.js';
 import { getCustomerRows, getStatusBreakdown, summarizeAdminWorkspace } from './admin-dashboard-data.js';
 import {
+  buildEmployeeLedger,
   buildMonthlyAttendanceBook,
   sortAttendanceBySection,
+  summarizeEmployeePayroll,
   summarizeAttendance,
 } from './workforce-dashboard-data.js';
 
@@ -42,6 +46,7 @@ const updateForm = document.querySelector('#update-project-form');
 const uploadForm = document.querySelector('#upload-media-form');
 const createStatus = document.querySelector('#create-project-status');
 const updateStatus = document.querySelector('#update-project-status');
+const projectActivity = document.querySelector('#project-activity');
 const uploadStatus = document.querySelector('#upload-status');
 const progress = document.querySelector('#upload-progress');
 const leadList = document.querySelector('#lead-list');
@@ -50,24 +55,55 @@ const leadStatusFilter = document.querySelector('#lead-status-filter');
 const sectionNavigation = document.querySelector('.admin-section-nav');
 const sectionDetails = document.querySelector('#admin-section-details');
 const sectionTitle = document.querySelector('#admin-section-title');
+const attendanceSectionSwitcher = document.querySelector('#attendance-section-switcher');
 const sectionTiles = document.querySelectorAll('.admin-section-card');
+const attendanceViewButtons = document.querySelectorAll('[data-attendance-view-button]');
 const attendanceDate = document.querySelector('#attendance-date');
 const attendanceBookMonth = document.querySelector('#attendance-book-month');
 const attendanceBookCount = document.querySelector('#attendance-book-count');
 const attendanceBookHeader = document.querySelector('#attendance-book-header');
 const attendanceBookList = document.querySelector('#attendance-book-list');
 const attendanceBookTotals = document.querySelector('#attendance-book-totals');
+const employeePayoutForm = document.querySelector('#employee-payout-form');
+const employeePayoutStatus = document.querySelector('#employee-payout-status');
+const employeePayoutMonth = document.querySelector('#employee-payout-month');
+const employeeLedgerDialog = document.querySelector('#employee-ledger-dialog');
+const employeeLedgerTitle = document.querySelector('#employee-ledger-title');
+const employeeLedgerPeriod = document.querySelector('#employee-ledger-period');
+const employeeLedgerEarnings = document.querySelector('#employee-ledger-earnings');
+const employeeLedgerPayouts = document.querySelector('#employee-ledger-payouts');
+const employeeLedgerBalance = document.querySelector('#employee-ledger-balance');
+const employeeLedgerEntries = document.querySelector('#employee-ledger-entries');
+const employeeForm = document.querySelector('#employee-form');
+const employeeStatus = document.querySelector('#employee-status');
+const employeeDirectoryList = document.querySelector('#employee-directory-list');
+const employeeDirectoryNames = document.querySelector('#employee-directory-names');
+const employeeCancelEditButton = document.querySelector('#employee-cancel-edit');
+const employeePayrollSummary = document.querySelector('#employee-payroll-summary');
+const employeePayrollTotals = document.querySelector('#employee-payroll-totals');
+const employeePayoutHistory = document.querySelector('#employee-payout-history');
 const attendanceForm = document.querySelector('#attendance-form');
+const attendanceCancelEditButton = document.querySelector('#attendance-cancel-edit');
 const attendanceRecordList = document.querySelector('#attendance-record-list');
 const leadStatuses = ['New', 'Contacted', 'Qualified', 'Won', 'Closed'];
 let projects = new Map();
+let projectPayments = [];
+let projectUpdates = [];
+let projectChanges = [];
 let leads = [];
 let attendanceRecords = [];
 let monthlyAttendanceRecords = [];
+let employeePayoutRecords = [];
+let employeeRecords = [];
+let editingAttendanceId;
+let editingEmployeeId;
 let stopProjects;
+let stopProjectActivity;
 let stopLeads;
 let stopAttendance;
 let stopAttendanceBook;
+let stopEmployeePayouts;
+let stopEmployees;
 let isAdmin = false;
 let activeSectionTile;
 
@@ -94,12 +130,23 @@ function showDashboardSection(tile) {
   for (const sectionTile of sectionTiles) {
     sectionTile.setAttribute('aria-expanded', String(sectionTile === tile));
   }
+  attendanceSectionSwitcher.hidden = sectionName !== 'attendance';
+  if (sectionName === 'attendance') showAttendanceView('attendance');
   activeSectionTile = tile;
   sectionTitle.textContent = tile.querySelector('strong').textContent;
   sectionNavigation.hidden = true;
   sectionDetails.hidden = false;
   sectionDetails.scrollIntoView({ behavior: 'smooth', block: 'start' });
   sectionTitle.focus({ preventScroll: true });
+}
+
+function showAttendanceView(viewName) {
+  for (const panel of document.querySelectorAll('[data-attendance-view-panel]')) {
+    panel.hidden = panel.dataset.attendanceViewPanel !== viewName;
+  }
+  for (const button of attendanceViewButtons) {
+    button.setAttribute('aria-pressed', String(button.dataset.attendanceViewButton === viewName));
+  }
 }
 
 function showDashboardSections(scrollToNavigation = false) {
@@ -112,6 +159,120 @@ function showDashboardSections(scrollToNavigation = false) {
     sectionNavigation.scrollIntoView({ behavior: 'smooth', block: 'start' });
     returnFocusTile?.focus({ preventScroll: true });
   }
+}
+
+function resetAttendanceEditor() {
+  editingAttendanceId = undefined;
+  attendanceForm.reset();
+  attendanceDate.disabled = false;
+  attendanceForm.querySelector('button[type="submit"]').textContent = 'Add attendance';
+  attendanceCancelEditButton.hidden = true;
+  showStatus(document.querySelector('#attendance-status-message'), '');
+}
+
+function resetEmployeeEditor() {
+  editingEmployeeId = undefined;
+  employeeForm.reset();
+  employeeForm.querySelector('button[type="submit"]').textContent = 'Add employee';
+  employeeCancelEditButton.hidden = true;
+  showStatus(employeeStatus, '');
+}
+
+function renderEmployeeNameOptions() {
+  const namesByKey = new Map();
+  for (const employee of employeeRecords) {
+    const name = String(employee.employeeName || '').trim();
+    if (name) namesByKey.set(name.toLocaleLowerCase(), name);
+  }
+  for (const record of monthlyAttendanceRecords) {
+    const name = String(record.employeeName || '').trim();
+    if (name && !namesByKey.has(name.toLocaleLowerCase())) {
+      namesByKey.set(name.toLocaleLowerCase(), name);
+    }
+  }
+  employeeDirectoryNames.replaceChildren(...[...namesByKey.values()]
+    .sort((left, right) => left.localeCompare(right))
+    .map((name) => {
+      const option = document.createElement('option');
+      option.value = name;
+      return option;
+    }));
+}
+
+function maskSensitiveValue(value) {
+  const text = String(value || '');
+  return text ? `•••• ${text.slice(-4)}` : '—';
+}
+
+function renderEmployeeDirectory() {
+  renderEmployeeNameOptions();
+  employeeDirectoryList.replaceChildren();
+  if (!employeeRecords.length) {
+    const row = document.createElement('tr');
+    const cell = document.createElement('td');
+    cell.colSpan = 9;
+    cell.textContent = 'No employee profiles have been added.';
+    row.append(cell);
+    employeeDirectoryList.append(row);
+    return;
+  }
+
+  const sortedEmployees = [...employeeRecords].sort((left, right) =>
+    String(left.employeeName || '').localeCompare(String(right.employeeName || '')),
+  );
+  for (const employee of sortedEmployees) {
+    const row = document.createElement('tr');
+    const values = [
+      employee.employeeName,
+      maskSensitiveValue(employee.mobileNumber),
+      maskSensitiveValue(employee.aadhaarNumber),
+      maskSensitiveValue(employee.panNumber),
+      maskSensitiveValue(employee.bankAccountNumber),
+      employee.familySize,
+      employee.hasBike ? 'Yes' : 'No',
+      employee.hasValidLicence ? 'Yes' : 'No',
+    ];
+    for (const value of values) {
+      const cell = document.createElement('td');
+      cell.textContent = String(value ?? '—');
+      row.append(cell);
+    }
+    const actionCell = document.createElement('td');
+    const editButton = document.createElement('button');
+    editButton.className = 'button button-outline-dark attendance-edit-button';
+    editButton.type = 'button';
+    editButton.dataset.editEmployee = employee.id;
+    editButton.textContent = 'Edit details';
+    actionCell.append(editButton);
+    row.append(actionCell);
+    employeeDirectoryList.append(row);
+  }
+}
+
+function editEmployee(employee) {
+  editingEmployeeId = employee.id;
+  for (const field of [
+    'employeeName',
+    'fatherName',
+    'motherName',
+    'familySize',
+    'address',
+    'aadhaarNumber',
+    'panNumber',
+    'bankAccountNumber',
+    'ifscCode',
+    'mobileNumber',
+    'emergencyMobileNumber',
+  ]) {
+    employeeForm.elements[field].value = employee[field] ?? '';
+  }
+  employeeForm.elements.hasBike.value = String(employee.hasBike);
+  employeeForm.elements.hasValidLicence.value = String(employee.hasValidLicence);
+  employeeForm.querySelector('button[type="submit"]').textContent = 'Save employee changes';
+  employeeCancelEditButton.hidden = false;
+  showStatus(employeeStatus, `Editing ${employee.employeeName || 'employee'} details.`);
+  employeeForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  employeeForm.elements.employeeName.focus({ preventScroll: true });
 }
 
 async function verifyAdminAccess(user) {
@@ -146,6 +307,11 @@ async function verifyAdminAccess(user) {
 }
 
 function clearProjectForms() {
+  stopProjectActivity?.();
+  stopProjectActivity = undefined;
+  projectPayments = [];
+  projectUpdates = [];
+  projectChanges = [];
   updateForm.reset();
   uploadForm.reset();
   updateForm.querySelectorAll('input,select,textarea,button').forEach((field) => {
@@ -156,6 +322,7 @@ function clearProjectForms() {
   });
   progress.hidden = true;
   progress.value = 0;
+  renderProjectActivity();
 }
 
 function selectProject(projectId) {
@@ -172,10 +339,111 @@ function selectProject(projectId) {
   updateForm.elements.paymentStatus.value = project.paymentStatus || 'Not provided';
   updateForm.elements.contractAmount.value = project.contractAmount ?? '';
   updateForm.elements.amountPaid.value = project.amountPaid ?? '';
+  for (const number of [1, 2, 3]) {
+    updateForm.elements[`installment${number}`].value = '';
+    updateForm.elements[`installment${number}`].disabled = true;
+  }
   updateForm.elements.progressPercent.value = project.progressPercent ?? '';
   updateForm.elements.estimatedDeliveryDays.value = project.estimatedDeliveryDays ?? '';
+  stopProjectActivity?.();
+  projectPayments = [];
+  projectUpdates = [];
+  projectChanges = [];
+  renderProjectActivity();
+  const stopPayments = onSnapshot(collection(db, 'projects', projectId, 'payments'), (snapshot) => {
+    projectPayments = snapshot.docs
+      .map((item) => ({ id: item.id, ...item.data() }))
+      .sort((left, right) => Number(left.installment) - Number(right.installment));
+    const recordedInstallments = new Set(projectPayments.map((payment) => Number(payment.installment)));
+    for (const number of [1, 2, 3]) {
+      const input = updateForm.elements[`installment${number}`];
+      input.disabled = recordedInstallments.has(number);
+    }
+    renderProjectActivity();
+  }, (error) => {
+    console.error('Unable to load project payments:', error);
+    showStatus(updateStatus, 'Project activity could not be loaded. Try again before recording an installment.', true);
+  });
+  const stopUpdates = onSnapshot(collection(db, 'projects', projectId, 'updates'), (snapshot) => {
+    projectUpdates = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+    renderProjectActivity();
+  }, (error) => {
+    console.error('Unable to load project updates:', error);
+    showStatus(updateStatus, 'Project activity could not be loaded.', true);
+  });
+  const stopChanges = onSnapshot(collection(db, 'projects', projectId, 'activity'), (snapshot) => {
+    projectChanges = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+    renderProjectActivity();
+  }, (error) => {
+    console.error('Unable to load project change history:', error);
+    showStatus(updateStatus, 'Project activity could not be loaded.', true);
+  });
+  stopProjectActivity = () => {
+    stopPayments();
+    stopUpdates();
+    stopChanges();
+  };
   showStatus(updateStatus, '');
   showStatus(uploadStatus, '');
+}
+
+function renderProjectActivity() {
+  projectActivity.replaceChildren();
+  const activityItems = [
+    ...projectPayments.map((payment) => ({
+      id: `payment-${payment.id}`,
+      title: 'Payment received',
+      message: `Installment ${payment.installment}: ${new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        maximumFractionDigits: 2,
+      }).format(Number(payment.amount) || 0)}`,
+      createdAt: payment.paidAt,
+    })),
+    ...projectUpdates.map((update) => ({
+      id: `update-${update.id}`,
+      title: 'Site update',
+      message: [update.message || 'Project progress update', ...(update.media || []).map((item) => item.name || 'Project media')]
+        .join(' · '),
+      createdAt: update.createdAt,
+    })),
+    ...projectChanges.map((change) => ({
+      id: `change-${change.id}`,
+      title: change.type === 'project_created' ? 'Project created' : 'Project details changed',
+      message: change.message,
+      createdAt: change.createdAt,
+    })),
+  ].sort((left, right) =>
+    (right.createdAt?.toMillis?.() || 0) - (left.createdAt?.toMillis?.() || 0),
+  );
+  if (!activityItems.length) {
+    const empty = document.createElement('li');
+    empty.className = 'project-activity-empty';
+    empty.textContent = 'No activity recorded yet.';
+    projectActivity.append(empty);
+    return;
+  }
+
+  const dateTimeFormatter = new Intl.DateTimeFormat('en-IN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+  for (const item of activityItems) {
+    const entry = document.createElement('li');
+    entry.className = 'project-activity-entry';
+    const heading = document.createElement('div');
+    heading.className = 'project-activity-heading';
+    const title = document.createElement('strong');
+    title.textContent = item.title;
+    const time = document.createElement('time');
+    const date = item.createdAt?.toDate?.();
+    time.textContent = date ? dateTimeFormatter.format(date) : 'Timestamp pending';
+    heading.append(title, time);
+    const message = document.createElement('p');
+    message.textContent = item.message || '';
+    entry.append(heading, message);
+    projectActivity.append(entry);
+  }
 }
 
 function updateMetrics() {
@@ -197,9 +465,10 @@ function renderAttendance() {
     maximumFractionDigits: 0,
   });
   document.querySelector('#attendance-working-count').textContent = String(summary.workingCount);
+  document.querySelector('#attendance-absent-count').textContent = String(summary.absentCount);
   document.querySelector('#attendance-leave-count').textContent = String(summary.leaveCount);
   document.querySelector('#attendance-salary-spend').textContent = currencyFormatter.format(summary.dailySalarySpend);
-  document.querySelector('#attendance-nav-summary').textContent = `${summary.workingCount} working · ${summary.leaveCount} on leave`;
+  document.querySelector('#attendance-nav-summary').textContent = `${summary.workingCount} present · ${summary.absentCount} absent · ${summary.leaveCount} leave`;
 
   const locationSummary = document.querySelector('#attendance-location-summary');
   locationSummary.replaceChildren();
@@ -267,6 +536,28 @@ function renderAttendance() {
     }
 
     const actionCell = document.createElement('td');
+    const actions = document.createElement('div');
+    actions.className = 'attendance-actions';
+    const editButton = document.createElement('button');
+    editButton.type = 'button';
+    editButton.className = 'button button-outline-dark attendance-edit-button';
+    editButton.textContent = 'Edit';
+    editButton.setAttribute('aria-label', `Edit attendance for ${record.employeeName || 'employee'}`);
+    editButton.addEventListener('click', () => {
+      if (!isAdmin) return;
+      editingAttendanceId = record.id;
+      attendanceForm.elements.employeeName.value = record.employeeName || '';
+      attendanceForm.elements.section.value = record.section || '';
+      attendanceForm.elements.location.value = record.location || '';
+      attendanceForm.elements.status.value = record.status || 'Present';
+      attendanceForm.elements.dailyWage.value = record.dailyWage ?? '';
+      attendanceDate.disabled = true;
+      attendanceForm.querySelector('button[type="submit"]').textContent = 'Save attendance';
+      attendanceCancelEditButton.hidden = false;
+      showStatus(document.querySelector('#attendance-status-message'), `Editing ${record.employeeName}'s attendance for ${attendanceDate.value}.`);
+      attendanceForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      attendanceForm.elements.employeeName.focus({ preventScroll: true });
+    });
     const removeButton = document.createElement('button');
     removeButton.type = 'button';
     removeButton.className = 'button button-outline-dark attendance-remove-button';
@@ -277,13 +568,15 @@ function renderAttendance() {
       removeButton.disabled = true;
       try {
         await deleteDoc(doc(db, 'employeeAttendance', record.id));
+        if (editingAttendanceId === record.id) resetAttendanceEditor();
       } catch (error) {
         console.error('Unable to remove attendance record:', error);
         showStatus(globalStatus, 'Attendance record could not be removed. Check Firestore rules and try again.', true);
         removeButton.disabled = false;
       }
     });
-    actionCell.append(removeButton);
+    actions.append(editButton, removeButton);
+    actionCell.append(actions);
     row.append(actionCell);
     attendanceRecordList.append(row);
   }
@@ -292,7 +585,7 @@ function renderAttendance() {
 function renderAttendanceBook() {
   const monthValue = attendanceBookMonth.value;
   const { daysInMonth, rows } = buildMonthlyAttendanceBook(monthlyAttendanceRecords, monthValue);
-  const columnCount = daysInMonth + 4;
+  const columnCount = daysInMonth + 5;
   const [year, month] = monthValue.split('-').map(Number);
   const monthLabel = month && year
     ? new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1))
@@ -318,7 +611,7 @@ function renderAttendanceBook() {
     heading.setAttribute('aria-label', `Day ${day}`);
     headerRow.append(heading);
   }
-  for (const label of ['Present', 'Leave', 'Wages']) {
+  for (const label of ['Present', 'Absent', 'Leave', 'Wages']) {
     const heading = document.createElement('th');
     heading.scope = 'col';
     heading.textContent = label;
@@ -362,13 +655,15 @@ function renderAttendanceBook() {
       cell.className = 'attendance-day-cell';
       cell.textContent = mark || '—';
       if (mark) {
-        cell.classList.add(mark === 'P' ? 'attendance-mark-present' : 'attendance-mark-leave');
-        cell.title = mark === 'P' ? 'Present' : 'Leave';
+        const markClass = { P: 'present', A: 'absent', L: 'leave' }[mark];
+        cell.classList.add(`attendance-mark-${markClass}`);
+        cell.title = { P: 'Present', A: 'Absent', L: 'Leave' }[mark];
       }
       row.append(cell);
     }
     for (const value of [
       String(employee.presentDays),
+      String(employee.absentDays),
       String(employee.leaveDays),
       currencyFormatter.format(employee.salarySpend),
     ]) {
@@ -385,13 +680,18 @@ function renderAttendanceBook() {
   const dailyLeaveTotals = Array.from({ length: daysInMonth }, (_, index) =>
     rows.reduce((total, employee) => total + (employee.days[index] === 'L' ? 1 : 0), 0),
   );
+  const dailyAbsentTotals = Array.from({ length: daysInMonth }, (_, index) =>
+    rows.reduce((total, employee) => total + (employee.days[index] === 'A' ? 1 : 0), 0),
+  );
   const totalPresentDays = rows.reduce((total, employee) => total + employee.presentDays, 0);
+  const totalAbsentDays = rows.reduce((total, employee) => total + employee.absentDays, 0);
   const totalLeaveDays = rows.reduce((total, employee) => total + employee.leaveDays, 0);
   const totalWages = rows.reduce((total, employee) => total + employee.salarySpend, 0);
 
-  for (const [label, dailyTotals, presentTotal, leaveTotal, wageTotal] of [
-    ['Present totals', dailyPresentTotals, String(totalPresentDays), '', currencyFormatter.format(totalWages)],
-    ['Leave totals', dailyLeaveTotals, '', String(totalLeaveDays), ''],
+  for (const [label, dailyTotals, presentTotal, absentTotal, leaveTotal, wageTotal] of [
+    ['Present totals', dailyPresentTotals, String(totalPresentDays), '', '', currencyFormatter.format(totalWages)],
+    ['Absent totals', dailyAbsentTotals, '', String(totalAbsentDays), '', ''],
+    ['Leave totals', dailyLeaveTotals, '', '', String(totalLeaveDays), ''],
   ]) {
     const row = document.createElement('tr');
     const labelCell = document.createElement('th');
@@ -404,13 +704,185 @@ function renderAttendanceBook() {
       cell.textContent = String(total);
       row.append(cell);
     }
-    for (const value of [presentTotal, leaveTotal, wageTotal]) {
+    for (const value of [presentTotal, absentTotal, leaveTotal, wageTotal]) {
       const cell = document.createElement('td');
       cell.textContent = value;
       row.append(cell);
     }
     attendanceBookTotals.append(row);
   }
+}
+
+function renderEmployeePayroll() {
+  const monthValue = attendanceBookMonth.value;
+  const attendanceRows = buildMonthlyAttendanceBook(monthlyAttendanceRecords, monthValue).rows;
+  const payrollRows = summarizeEmployeePayroll(attendanceRows, employeePayoutRecords);
+  const [year, month] = monthValue.split('-').map(Number);
+  employeePayoutMonth.textContent = month && year
+    ? new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1))
+    : 'Not selected';
+  const currencyFormatter = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 2,
+  });
+  const balanceLabel = (balance) => balance >= 0
+    ? currencyFormatter.format(balance)
+    : `Advance ${currencyFormatter.format(Math.abs(balance))}`;
+
+  renderEmployeeNameOptions();
+  employeePayrollSummary.replaceChildren();
+  employeePayrollTotals.replaceChildren();
+  if (!payrollRows.length) {
+    const emptyRow = document.createElement('tr');
+    const emptyCell = document.createElement('td');
+    emptyCell.colSpan = 5;
+    emptyCell.textContent = 'No employee earnings or payouts for this month.';
+    emptyRow.append(emptyCell);
+    employeePayrollSummary.append(emptyRow);
+  } else {
+    for (const employee of payrollRows) {
+      const row = document.createElement('tr');
+      const employeeCell = document.createElement('td');
+      const ledgerButton = document.createElement('button');
+      ledgerButton.className = 'employee-ledger-open';
+      ledgerButton.type = 'button';
+      ledgerButton.dataset.employeeLedger = employee.employeeName;
+      ledgerButton.setAttribute('aria-haspopup', 'dialog');
+      ledgerButton.textContent = employee.employeeName;
+      employeeCell.append(ledgerButton);
+      row.append(employeeCell);
+      for (const value of [
+        employee.section,
+        currencyFormatter.format(employee.earnings),
+        currencyFormatter.format(employee.payouts),
+        balanceLabel(employee.balance),
+      ]) {
+        const cell = document.createElement('td');
+        cell.textContent = value;
+        row.append(cell);
+      }
+      employeePayrollSummary.append(row);
+    }
+
+    const totalEarnings = payrollRows.reduce((total, employee) => total + employee.earnings, 0);
+    const totalPayouts = payrollRows.reduce((total, employee) => total + employee.payouts, 0);
+    const totalBalance = totalEarnings - totalPayouts;
+    const totalsRow = document.createElement('tr');
+    const totalsHeading = document.createElement('th');
+    totalsHeading.scope = 'row';
+    totalsHeading.textContent = 'Month totals';
+    totalsRow.append(totalsHeading);
+    for (const value of [
+      '—',
+      currencyFormatter.format(totalEarnings),
+      currencyFormatter.format(totalPayouts),
+      balanceLabel(totalBalance),
+    ]) {
+      const cell = document.createElement('td');
+      cell.textContent = value;
+      totalsRow.append(cell);
+    }
+    employeePayrollTotals.append(totalsRow);
+  }
+
+  employeePayoutHistory.replaceChildren();
+  const sortedPayouts = [...employeePayoutRecords].sort((left, right) =>
+    (right.paidAt?.toMillis?.() || 0) - (left.paidAt?.toMillis?.() || 0),
+  );
+  if (!sortedPayouts.length) {
+    const emptyRow = document.createElement('tr');
+    const emptyCell = document.createElement('td');
+    emptyCell.colSpan = 4;
+    emptyCell.textContent = 'No payouts recorded for this month.';
+    emptyRow.append(emptyCell);
+    employeePayoutHistory.append(emptyRow);
+    return;
+  }
+
+  const dateTimeFormatter = new Intl.DateTimeFormat('en-IN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+  for (const payout of sortedPayouts) {
+    const row = document.createElement('tr');
+    const paidAt = payout.paidAt?.toDate?.();
+    for (const value of [
+      payout.employeeName,
+      currencyFormatter.format(Number(payout.amount) || 0),
+      payout.paymentMode,
+      paidAt ? dateTimeFormatter.format(paidAt) : 'Timestamp pending',
+    ]) {
+      const cell = document.createElement('td');
+      cell.textContent = value || '—';
+      row.append(cell);
+    }
+    employeePayoutHistory.append(row);
+  }
+}
+
+function openEmployeeLedger(employeeName) {
+  const monthValue = attendanceBookMonth.value;
+  const attendanceRows = buildMonthlyAttendanceBook(monthlyAttendanceRecords, monthValue).rows;
+  const transactions = buildEmployeeLedger(attendanceRows, employeePayoutRecords, employeeName);
+  const currencyFormatter = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 2,
+  });
+  const dateFormatter = new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium' });
+  const dateTimeFormatter = new Intl.DateTimeFormat('en-IN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+  const earnings = transactions.reduce((total, transaction) => total + transaction.credit, 0);
+  const payouts = transactions.reduce((total, transaction) => total + transaction.debit, 0);
+  const closingBalance = transactions.length ? transactions[transactions.length - 1].balance : 0;
+  const [year, month] = monthValue.split('-').map(Number);
+  const period = year && month
+    ? new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1))
+    : 'Selected month';
+
+  employeeLedgerTitle.textContent = employeeName;
+  employeeLedgerPeriod.textContent = `Statement period: ${period}`;
+  employeeLedgerEarnings.textContent = currencyFormatter.format(earnings);
+  employeeLedgerPayouts.textContent = currencyFormatter.format(payouts);
+  employeeLedgerBalance.textContent = currencyFormatter.format(closingBalance);
+  employeeLedgerEntries.replaceChildren();
+  if (!transactions.length) {
+    const row = document.createElement('tr');
+    const cell = document.createElement('td');
+    cell.colSpan = 5;
+    cell.textContent = 'No earnings or payouts recorded for this employee in this month.';
+    row.append(cell);
+    employeeLedgerEntries.append(row);
+  } else {
+    for (const transaction of transactions) {
+      const row = document.createElement('tr');
+      const dateCell = document.createElement('td');
+      if (transaction.paidAt) {
+        dateCell.textContent = dateTimeFormatter.format(transaction.paidAt);
+      } else if (transaction.workDate) {
+        const [entryYear, entryMonth, entryDay] = transaction.workDate.split('-').map(Number);
+        dateCell.textContent = dateFormatter.format(new Date(entryYear, entryMonth - 1, entryDay));
+      } else {
+        dateCell.textContent = 'Timestamp pending';
+      }
+      row.append(dateCell);
+      for (const value of [
+        transaction.description,
+        transaction.credit ? currencyFormatter.format(transaction.credit) : '—',
+        transaction.debit ? currencyFormatter.format(transaction.debit) : '—',
+        currencyFormatter.format(transaction.balance),
+      ]) {
+        const cell = document.createElement('td');
+        cell.textContent = value;
+        row.append(cell);
+      }
+      employeeLedgerEntries.append(row);
+    }
+  }
+  employeeLedgerDialog.showModal();
 }
 
 function watchAttendance() {
@@ -438,6 +910,7 @@ function watchAttendanceBook() {
   stopAttendanceBook?.();
   monthlyAttendanceRecords = [];
   renderAttendanceBook();
+  renderEmployeePayroll();
   const monthValue = attendanceBookMonth.value;
   const monthParts = /^(\d{4})-(\d{2})$/.exec(monthValue);
   if (!monthParts) return;
@@ -458,13 +931,55 @@ function watchAttendanceBook() {
     (snapshot) => {
       monthlyAttendanceRecords = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
       renderAttendanceBook();
+      renderEmployeePayroll();
     },
     (error) => {
       console.error('Unable to load monthly employee attendance:', error);
       monthlyAttendanceRecords = [];
       renderAttendanceBook();
+      renderEmployeePayroll();
       attendanceBookCount.textContent = 'Attendance book could not be loaded.';
       showStatus(globalStatus, 'The monthly attendance book is unavailable. Check Firestore rules and try again.', true);
+    },
+  );
+}
+
+function watchEmployeePayouts() {
+  stopEmployeePayouts?.();
+  employeePayoutRecords = [];
+  renderEmployeePayroll();
+  const monthValue = attendanceBookMonth.value;
+  if (!monthValue) return;
+  stopEmployeePayouts = onSnapshot(
+    query(collection(db, 'employeePayouts'), where('earningMonth', '==', monthValue)),
+    (snapshot) => {
+      employeePayoutRecords = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+      renderEmployeePayroll();
+    },
+    (error) => {
+      console.error('Unable to load employee payouts:', error);
+      employeePayoutRecords = [];
+      renderEmployeePayroll();
+      showStatus(globalStatus, 'Employee payouts could not be loaded. Check Firestore rules and try again.', true);
+    },
+  );
+}
+
+function watchEmployees() {
+  stopEmployees?.();
+  employeeRecords = [];
+  renderEmployeeDirectory();
+  stopEmployees = onSnapshot(
+    collection(db, 'employees'),
+    (snapshot) => {
+      employeeRecords = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+      renderEmployeeDirectory();
+    },
+    (error) => {
+      console.error('Unable to load employee profiles:', error);
+      employeeRecords = [];
+      renderEmployeeDirectory();
+      showStatus(employeeStatus, 'Employee profiles could not be loaded. Check Firestore rules and try again.', true);
     },
   );
 }
@@ -762,6 +1277,9 @@ if (!firebaseReady) {
     tile.setAttribute('aria-expanded', 'false');
     tile.addEventListener('click', () => showDashboardSection(tile));
   }
+  for (const button of attendanceViewButtons) {
+    button.addEventListener('click', () => showAttendanceView(button.dataset.attendanceViewButton));
+  }
   document.querySelector('#admin-section-back').addEventListener('click', () => showDashboardSections(true));
   projectPicker.addEventListener('change', () => selectProject(projectPicker.value));
   leadSearch.addEventListener('input', renderLeads);
@@ -769,8 +1287,147 @@ if (!firebaseReady) {
   attendanceDate.value = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   attendanceBookMonth.value = attendanceDate.value.slice(0, 7);
   attendanceDate.addEventListener('change', watchAttendance);
-  attendanceBookMonth.addEventListener('change', watchAttendanceBook);
+  attendanceBookMonth.addEventListener('change', () => {
+    watchAttendanceBook();
+    watchEmployeePayouts();
+  });
+  attendanceCancelEditButton.addEventListener('click', resetAttendanceEditor);
+  employeeCancelEditButton.addEventListener('click', resetEmployeeEditor);
+  employeeDirectoryList.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-edit-employee]');
+    if (!button) return;
+    const employee = employeeRecords.find((record) => record.id === button.dataset.editEmployee);
+    if (!employee) {
+      showStatus(employeeStatus, 'That employee profile is no longer available. Refresh the directory and try again.', true);
+      return;
+    }
+    editEmployee(employee);
+  });
+  employeePayrollSummary.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-employee-ledger]');
+    if (button) openEmployeeLedger(button.dataset.employeeLedger);
+  });
   clearProjectForms();
+
+  employeeForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!isAdmin) return;
+    const formData = new FormData(employeeForm);
+    const employeeName = String(formData.get('employeeName') || '').trim();
+    const fatherName = String(formData.get('fatherName') || '').trim();
+    const motherName = String(formData.get('motherName') || '').trim();
+    const familySize = Number(formData.get('familySize'));
+    const address = String(formData.get('address') || '').trim();
+    const aadhaarNumber = String(formData.get('aadhaarNumber') || '').trim();
+    const panNumber = String(formData.get('panNumber') || '').trim().toUpperCase();
+    const bankAccountNumber = String(formData.get('bankAccountNumber') || '').trim();
+    const ifscCode = String(formData.get('ifscCode') || '').trim().toUpperCase();
+    const mobileNumber = String(formData.get('mobileNumber') || '').trim();
+    const emergencyMobileNumber = String(formData.get('emergencyMobileNumber') || '').trim();
+    const hasBike = formData.get('hasBike') === 'true';
+    const hasValidLicence = formData.get('hasValidLicence') === 'true';
+    if (
+      !employeeName
+      || !fatherName
+      || !motherName
+      || !Number.isInteger(familySize)
+      || familySize < 1
+      || !address
+      || !/^[0-9]{12}$/.test(aadhaarNumber)
+      || !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(panNumber)
+      || !/^[0-9]{6,18}$/.test(bankAccountNumber)
+      || !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscCode)
+      || !/^[+]?[0-9]{10,15}$/.test(mobileNumber)
+      || !/^[+]?[0-9]{10,15}$/.test(emergencyMobileNumber)
+      || !['true', 'false'].includes(String(formData.get('hasBike')))
+      || !['true', 'false'].includes(String(formData.get('hasValidLicence')))
+    ) {
+      showStatus(employeeStatus, 'Check the required details and formats, including 12-digit Aadhaar, PAN, bank, IFSC, and phone numbers.', true);
+      return;
+    }
+
+    const employeeData = {
+      employeeName,
+      fatherName,
+      motherName,
+      familySize,
+      address,
+      aadhaarNumber,
+      panNumber,
+      bankAccountNumber,
+      ifscCode,
+      mobileNumber,
+      emergencyMobileNumber,
+      hasBike,
+      hasValidLicence,
+      updatedAt: serverTimestamp(),
+    };
+    const button = employeeForm.querySelector('button[type="submit"]');
+    const isEditing = Boolean(editingEmployeeId);
+    button.disabled = true;
+    employeeCancelEditButton.disabled = true;
+    showStatus(employeeStatus, isEditing ? 'Saving employee changes...' : 'Adding employee...');
+    try {
+      if (isEditing) {
+        await updateDoc(doc(db, 'employees', editingEmployeeId), employeeData);
+      } else {
+        await addDoc(collection(db, 'employees'), {
+          ...employeeData,
+          createdAt: serverTimestamp(),
+        });
+      }
+      resetEmployeeEditor();
+      showStatus(employeeStatus, isEditing ? 'Employee details updated.' : 'Employee added.');
+    } catch (error) {
+      console.error('Unable to save employee profile:', error);
+      showStatus(employeeStatus, 'Employee details could not be saved. Check Firestore rules and try again.', true);
+    } finally {
+      button.disabled = false;
+      employeeCancelEditButton.disabled = false;
+    }
+  });
+
+  employeePayoutForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!isAdmin) return;
+    const formData = new FormData(employeePayoutForm);
+    const employeeName = String(formData.get('employeeName') || '').trim();
+    const amountValue = String(formData.get('amount') || '').trim();
+    const amount = Number(amountValue);
+    const paymentMode = String(formData.get('paymentMode') || '');
+    const earningMonth = attendanceBookMonth.value;
+    if (
+      !employeeName
+      || !amountValue
+      || !Number.isFinite(amount)
+      || amount <= 0
+      || !earningMonth
+      || !['Cash', 'Bank transfer', 'UPI', 'Cheque', 'Other'].includes(paymentMode)
+    ) {
+      showStatus(employeePayoutStatus, 'Enter an employee, a payout amount greater than zero, and a payment mode.', true);
+      return;
+    }
+
+    const button = employeePayoutForm.querySelector('button[type="submit"]');
+    button.disabled = true;
+    showStatus(employeePayoutStatus, 'Recording payout...');
+    try {
+      await addDoc(collection(db, 'employeePayouts'), {
+        employeeName,
+        amount,
+        paymentMode,
+        earningMonth,
+        paidAt: serverTimestamp(),
+      });
+      employeePayoutForm.reset();
+      showStatus(employeePayoutStatus, 'Payout recorded with its date and time.');
+    } catch (error) {
+      console.error('Unable to record employee payout:', error);
+      showStatus(employeePayoutStatus, 'Payout could not be recorded. Check Firestore rules and try again.', true);
+    } finally {
+      button.disabled = false;
+    }
+  });
 
   attendanceForm.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -791,29 +1448,40 @@ if (!firebaseReady) {
       || !dailyWageValue
       || !Number.isFinite(dailyWage)
       || dailyWage < 0
-      || !['Present', 'Leave'].includes(status)
+      || !['Present', 'Absent', 'Leave'].includes(status)
     ) {
       showStatus(document.querySelector('#attendance-status-message'), 'Enter an employee, work section, location, and valid daily wage.', true);
       return;
     }
 
     button.disabled = true;
-    showStatus(document.querySelector('#attendance-status-message'), 'Saving attendance...');
+    const isEditing = Boolean(editingAttendanceId);
+    showStatus(document.querySelector('#attendance-status-message'), isEditing ? 'Saving attendance changes...' : 'Saving attendance...');
     try {
-      await addDoc(collection(db, 'employeeAttendance'), {
+      const attendanceData = {
         employeeName,
         section,
         location,
         status,
         dailyWage,
         workDate: attendanceDate.value,
-        recordedAt: serverTimestamp(),
-      });
-      attendanceForm.reset();
-      showStatus(document.querySelector('#attendance-status-message'), 'Attendance recorded.');
+      };
+      if (isEditing) {
+        await updateDoc(doc(db, 'employeeAttendance', editingAttendanceId), {
+          ...attendanceData,
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        await addDoc(collection(db, 'employeeAttendance'), {
+          ...attendanceData,
+          recordedAt: serverTimestamp(),
+        });
+      }
+      resetAttendanceEditor();
+      showStatus(document.querySelector('#attendance-status-message'), isEditing ? 'Attendance updated.' : 'Attendance recorded.');
     } catch (error) {
-      console.error('Unable to record employee attendance:', error);
-      showStatus(document.querySelector('#attendance-status-message'), 'Attendance could not be saved. Check Firestore rules and try again.', true);
+      console.error(isEditing ? 'Unable to update employee attendance:' : 'Unable to record employee attendance:', error);
+      showStatus(document.querySelector('#attendance-status-message'), `Attendance could not be ${isEditing ? 'updated' : 'saved'}. Check Firestore rules and try again.`, true);
     } finally {
       button.disabled = false;
     }
@@ -827,7 +1495,10 @@ if (!firebaseReady) {
     showStatus(createStatus, 'Creating project...');
     const formData = new FormData(createForm);
     try {
-      const projectRef = await addDoc(collection(db, 'projects'), {
+      const projectRef = doc(collection(db, 'projects'));
+      const activityRef = doc(collection(db, 'projects', projectRef.id, 'activity'));
+      const batch = writeBatch(db);
+      batch.set(projectRef, {
         customerId: String(formData.get('customerUid')).trim(),
         projectName: String(formData.get('projectName')).trim(),
         siteAddress: String(formData.get('siteAddress')).trim(),
@@ -841,6 +1512,12 @@ if (!firebaseReady) {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+      batch.set(activityRef, {
+        type: 'project_created',
+        message: 'Project linked to the customer account.',
+        createdAt: serverTimestamp(),
+      });
+      await batch.commit();
       createForm.reset();
       showStatus(createStatus, 'Project created and linked to the customer UID.');
       projectPicker.value = projectRef.id;
@@ -863,24 +1540,88 @@ if (!firebaseReady) {
     const projectId = projectPicker.value;
     const progressNote = String(formData.get('progressNote') || '').trim();
     const contractAmount = String(formData.get('contractAmount') || '').trim();
-    const amountPaid = String(formData.get('amountPaid') || '').trim();
     const progressPercent = String(formData.get('progressPercent') || '').trim();
     const estimatedDays = String(formData.get('estimatedDeliveryDays') || '').trim();
     const workStatus = String(formData.get('workStatus'));
+    const newInstallments = [1, 2, 3]
+      .map((number) => ({
+        installment: number,
+        amount: String(formData.get(`installment${number}`) || '').trim(),
+      }))
+      .filter((installment) => installment.amount !== '');
+    const invalidInstallment = newInstallments.find((installment) => {
+      const amount = Number(installment.amount);
+      return !Number.isFinite(amount) || amount <= 0;
+    });
+    if (invalidInstallment) {
+      showStatus(updateStatus, 'Each installment amount must be greater than zero.', true);
+      button.disabled = false;
+      return;
+    }
 
     try {
-      await updateDoc(doc(db, 'projects', projectId), {
-        projectName: String(formData.get('projectName')).trim(),
-        siteAddress: String(formData.get('siteAddress')).trim(),
-        workStatus,
-        paymentStatus: String(formData.get('paymentStatus')),
-        contractAmount: contractAmount ? Number(contractAmount) : null,
-        amountPaid: amountPaid ? Number(amountPaid) : null,
-        progressPercent: workStatus === 'Completed' ? 100 : progressPercent ? Number(progressPercent) : null,
-        estimatedDeliveryDays: estimatedDays ? Number(estimatedDays) : null,
-        currency: 'INR',
-        updatedAt: serverTimestamp(),
+      const projectRef = doc(db, 'projects', projectId);
+      const saved = await runTransaction(db, async (transaction) => {
+        const projectSnapshot = await transaction.get(projectRef);
+        const paymentSnapshots = await Promise.all(newInstallments.map((payment) =>
+          transaction.get(doc(db, 'projects', projectId, 'payments', `installment-${payment.installment}`)),
+        ));
+        if (!projectSnapshot.exists()) throw new Error('Project no longer exists.');
+        if (paymentSnapshots.some((payment) => payment.exists())) return false;
+
+        const currentProject = projectSnapshot.data();
+        const additionalPaid = newInstallments.reduce((total, payment) => total + Number(payment.amount), 0);
+        const paidToDate = (Number(currentProject.amountPaid) || 0) + additionalPaid;
+        const parsedContract = contractAmount ? Number(contractAmount) : null;
+        let paymentStatus = String(formData.get('paymentStatus'));
+        if (additionalPaid && parsedContract > 0) {
+          paymentStatus = paidToDate >= parsedContract ? 'Paid' : 'Partially paid';
+        }
+        const update = {
+          projectName: String(formData.get('projectName')).trim(),
+          siteAddress: String(formData.get('siteAddress')).trim(),
+          workStatus,
+          paymentStatus,
+          contractAmount: contractAmount ? Number(contractAmount) : null,
+          progressPercent: workStatus === 'Completed' ? 100 : progressPercent ? Number(progressPercent) : null,
+          estimatedDeliveryDays: estimatedDays ? Number(estimatedDays) : null,
+          currency: 'INR',
+          updatedAt: serverTimestamp(),
+        };
+        if (additionalPaid) update.amountPaid = paidToDate;
+        const trackedFields = [
+          ['Project name', currentProject.projectName, update.projectName],
+          ['Site address', currentProject.siteAddress, update.siteAddress],
+          ['Work status', currentProject.workStatus, update.workStatus],
+          ['Payment status', currentProject.paymentStatus, update.paymentStatus],
+          ['Contract amount', currentProject.contractAmount, update.contractAmount],
+          ['Progress', currentProject.progressPercent, update.progressPercent],
+          ['Estimated handover days', currentProject.estimatedDeliveryDays, update.estimatedDeliveryDays],
+        ];
+        const changes = trackedFields
+          .filter(([, previous, next]) => !Object.is(previous ?? null, next ?? null))
+          .map(([label, previous, next]) => `${label}: ${previous ?? 'Not set'} → ${next ?? 'Not set'}`);
+        transaction.update(projectRef, update);
+        if (changes.length) {
+          transaction.set(doc(collection(db, 'projects', projectId, 'activity')), {
+            type: 'project_changed',
+            message: changes.join('; '),
+            createdAt: serverTimestamp(),
+          });
+        }
+        for (const payment of newInstallments) {
+          transaction.set(doc(db, 'projects', projectId, 'payments', `installment-${payment.installment}`), {
+            installment: payment.installment,
+            amount: Number(payment.amount),
+            paidAt: serverTimestamp(),
+          });
+        }
+        return true;
       });
+      if (!saved) {
+        showStatus(updateStatus, 'An installment was already recorded. Refresh the project and try again.', true);
+        return;
+      }
       if (progressNote) {
         await addDoc(collection(db, 'projects', projectId, 'updates'), {
           message: progressNote,
@@ -952,20 +1693,31 @@ if (!firebaseReady) {
     stopLeads?.();
     stopAttendance?.();
     stopAttendanceBook?.();
+    stopEmployeePayouts?.();
+    stopEmployees?.();
     stopProjects = undefined;
     stopLeads = undefined;
     stopAttendance = undefined;
     stopAttendanceBook = undefined;
+    stopEmployeePayouts = undefined;
+    stopEmployees = undefined;
     isAdmin = false;
+    if (employeeLedgerDialog.open) employeeLedgerDialog.close();
+    resetAttendanceEditor();
+    resetEmployeeEditor();
     showDashboardSections();
     if (!user) {
       projects = new Map();
       leads = [];
       attendanceRecords = [];
       monthlyAttendanceRecords = [];
+      employeePayoutRecords = [];
+      employeeRecords = [];
       updateMetrics();
       renderAttendance();
       renderAttendanceBook();
+      renderEmployeeDirectory();
+      renderEmployeePayroll();
       leadList.replaceChildren();
       loginView.hidden = false;
       dashboard.hidden = true;
@@ -987,6 +1739,8 @@ if (!firebaseReady) {
       watchLeads();
       watchAttendance();
       watchAttendanceBook();
+      watchEmployeePayouts();
+      watchEmployees();
     } catch (error) {
       console.error('Unable to verify admin role:', error);
       showStatus(loginStatus, 'Unable to verify administrator access. Sign in again.', true);
