@@ -198,7 +198,7 @@
         </section>
         <section class="admin-panel attendance-register-panel" data-admin-section-detail="attendance" data-attendance-view-panel="attendance">
           <div class="admin-panel-heading"><span>05</span><h2>Daily attendance register</h2></div>
-          <p class="admin-help">Choose any date to view, add, or correct attendance. Wages are counted only for employees marked present.</p>
+          <p class="admin-help">Mark each employee present or absent for the selected date. Wages are counted only for employees marked present. Use the form to add a new employee entry or edit work details.</p>
           <form class="portal-form attendance-form" id="attendance-form">
             <label for="attendance-employee">Employee name</label>
             <input id="attendance-employee" name="employeeName" list="employee-directory-names" required maxlength="120" autocomplete="off" />
@@ -214,8 +214,8 @@
           </form>
           <div class="customer-table-wrap attendance-table-wrap">
             <table class="customer-table attendance-table">
-              <thead><tr><th>Employee</th><th>Work section</th><th>Location</th><th>Status</th><th>Daily wage</th><th>Actions</th></tr></thead>
-              <tbody id="attendance-record-list"><tr><td colspan="6">Loading attendance...</td></tr></tbody>
+              <thead><tr><th>Employee</th><th>Work section</th><th>Location</th><th>Daily wage</th><th>Status</th><th>Mark attendance</th><th>Actions</th></tr></thead>
+              <tbody id="attendance-record-list"><tr><td colspan="7">Loading attendance...</td></tr></tbody>
             </table>
           </div>
         </section>
@@ -226,6 +226,23 @@
           <section class="admin-panel" data-admin-section-detail="projects">
             <div class="admin-panel-heading"><span>06</span><h2 id="project-section">Project dashboard</h2></div>
             <div class="admin-summary-grid slim" id="project-dashboard-panel" aria-label="Project dashboard overview"></div>
+          </section>
+
+          <section class="admin-panel" data-admin-section-detail="projects">
+            <div class="admin-panel-heading"><span>07</span><h2>Project list</h2></div>
+            <div class="customer-table-wrap">
+              <div class="project-master-filters admin-form-grid" aria-label="Project filters">
+                <div><label for="project-status-filter">Status</label><select id="project-status-filter"><option value="">All statuses</option><option>Planning</option><option>In Progress</option><option>On Hold</option><option>Completed</option></select></div>
+                <div><label for="project-client-filter">Client</label><select id="project-client-filter"><option value="">All clients</option></select></div>
+                <div><label for="project-search-filter">Search</label><input id="project-search-filter" type="search" placeholder="Project name or ID" /></div>
+                <div><label for="project-start-filter">Starts on or after</label><input id="project-start-filter" type="date" /></div>
+                <div><label for="project-end-filter">Completes on or before</label><input id="project-end-filter" type="date" /></div>
+              </div>
+              <table class="customer-table project-master-table">
+                <thead><tr><th>Project</th><th>Project ID</th><th>Client ID (Firebase UID)</th><th>Type / category</th><th>Status</th><th>Schedule</th><th>Progress</th></tr></thead>
+                <tbody id="admin-project-list"><tr><td colspan="4">Loading projects...</td></tr></tbody>
+              </table>
+            </div>
           </section>
 
           <section class="admin-panel" data-admin-section-detail="customers">
@@ -252,11 +269,26 @@
 
           <section class="admin-panel" data-admin-section-detail="projects">
             <div class="admin-panel-heading"><span>10</span><h2>Link a customer project</h2></div>
-            <p class="admin-help">Create the customer account in Firebase Authentication first, then paste its user UID here.</p>
+            <p class="admin-help">Create the customer account in Firebase Authentication first, then paste its user UID (client ID) here.</p>
             <form class="portal-form" id="create-project-form">
-              <label for="customer-uid">Customer user UID</label><input id="customer-uid" name="customerUid" required maxlength="128" />
+              <label for="customer-uid">Available client</label><select id="customer-uid" name="customerUid" required><option value="">Loading clients...</option></select>
               <label for="new-project-name">Project name</label><input id="new-project-name" name="projectName" required maxlength="120" />
               <label for="new-site-address">Site address</label><input id="new-site-address" name="siteAddress" required maxlength="300" />
+              <div class="admin-form-grid">
+                <div><label for="new-project-type">Project type</label><select id="new-project-type" name="projectType"><option>Residential</option><option>Commercial</option><option>Industrial</option><option>Infrastructure</option><option>Renovation</option><option>Other</option></select></div>
+                <div><label for="new-project-category">Category</label><input id="new-project-category" name="projectCategory" maxlength="100" placeholder="e.g. Villa construction" /></div>
+                <div><label for="new-project-manager">Project manager</label><input id="new-project-manager" name="projectManager" maxlength="120" /></div>
+                <div><label for="new-site-engineer">Site engineer</label><input id="new-site-engineer" name="siteEngineer" maxlength="120" /></div>
+                <div><label for="new-contractor">Contractor</label><input id="new-contractor" name="contractor" maxlength="120" /></div>
+                <div><label for="new-plot-area">Plot area (sq ft)</label><input id="new-plot-area" name="plotArea" type="number" min="0" step="0.01" /></div>
+                <div><label for="new-built-up-area">Built-up area (sq ft)</label><input id="new-built-up-area" name="builtUpArea" type="number" min="0" step="0.01" /></div>
+                <div><label for="new-floors">Floors</label><input id="new-floors" name="floors" type="number" min="0" max="200" step="1" /></div>
+                <div><label for="new-priority">Priority</label><select id="new-priority" name="priority"><option>Normal</option><option>Low</option><option>High</option><option>Urgent</option></select></div>
+                <div><label for="new-start-date">Start date</label><input id="new-start-date" name="startDate" type="date" /></div>
+                <div><label for="new-completion-date">Expected completion</label><input id="new-completion-date" name="expectedCompletionDate" type="date" /></div>
+                <div><label for="new-project-budget">Estimated budget (INR)</label><input id="new-project-budget" name="budget" type="number" min="0" step="0.01" /></div>
+                <div><label for="new-gps-location">GPS location</label><input id="new-gps-location" name="gpsLocation" maxlength="120" placeholder="Latitude, longitude" /></div>
+              </div>
               <button class="button button-orange" type="submit">Create project <span aria-hidden="true">↗</span></button>
               <p class="form-status" id="create-project-status" role="status" aria-live="polite"></p>
             </form>
@@ -269,6 +301,22 @@
             <form class="portal-form" id="update-project-form">
               <label for="edit-project-name">Project name</label><input id="edit-project-name" name="projectName" required maxlength="120" />
               <label for="edit-site-address">Site address</label><input id="edit-site-address" name="siteAddress" required maxlength="300" />
+              <div class="admin-form-grid">
+                <div><label for="edit-project-type">Project type</label><select id="edit-project-type" name="projectType"><option>Residential</option><option>Commercial</option><option>Industrial</option><option>Infrastructure</option><option>Renovation</option><option>Other</option></select></div>
+                <div><label for="edit-project-category">Category</label><input id="edit-project-category" name="projectCategory" maxlength="100" /></div>
+                <div><label for="edit-project-manager">Project manager</label><input id="edit-project-manager" name="projectManager" maxlength="120" /></div>
+                <div><label for="edit-site-engineer">Site engineer</label><input id="edit-site-engineer" name="siteEngineer" maxlength="120" /></div>
+                <div><label for="edit-contractor">Contractor</label><input id="edit-contractor" name="contractor" maxlength="120" /></div>
+                <div><label for="edit-plot-area">Plot area (sq ft)</label><input id="edit-plot-area" name="plotArea" type="number" min="0" step="0.01" /></div>
+                <div><label for="edit-built-up-area">Built-up area (sq ft)</label><input id="edit-built-up-area" name="builtUpArea" type="number" min="0" step="0.01" /></div>
+                <div><label for="edit-floors">Floors</label><input id="edit-floors" name="floors" type="number" min="0" max="200" step="1" /></div>
+                <div><label for="edit-priority">Priority</label><select id="edit-priority" name="priority"><option>Normal</option><option>Low</option><option>High</option><option>Urgent</option></select></div>
+                <div><label for="edit-start-date">Start date</label><input id="edit-start-date" name="startDate" type="date" /></div>
+                <div><label for="edit-completion-date">Expected completion</label><input id="edit-completion-date" name="expectedCompletionDate" type="date" /></div>
+                <div><label for="edit-actual-completion-date">Actual completion</label><input id="edit-actual-completion-date" name="actualCompletionDate" type="date" /></div>
+                <div><label for="edit-project-budget">Estimated budget (INR)</label><input id="edit-project-budget" name="budget" type="number" min="0" step="0.01" /></div>
+                <div><label for="edit-gps-location">GPS location</label><input id="edit-gps-location" name="gpsLocation" maxlength="120" /></div>
+              </div>
               <div class="admin-form-grid">
                 <div><label for="work-status">Work status</label><select id="work-status" name="workStatus"><option>Planning</option><option>In Progress</option><option>On Hold</option><option>Completed</option></select></div>
                 <div><label for="payment-status">Payment status</label><select id="payment-status" name="paymentStatus"><option>Not provided</option><option>Unpaid</option><option>Partially paid</option><option>Paid</option></select></div>
@@ -347,6 +395,17 @@
         </table>
       </div>
       <p class="admin-help employee-ledger-help">Daily wages are credited on attendance dates. Payouts show the recorded payment date, time, and mode.</p>
+    </dialog>
+    <dialog class="employee-ledger-dialog employee-profile-dialog" id="employee-profile-dialog" aria-labelledby="employee-profile-title">
+      <div class="employee-ledger-heading">
+        <div>
+          <p class="employee-ledger-eyebrow">EMPLOYEE PROFILE</p>
+          <h2 id="employee-profile-title"></h2>
+          <p>Saved employee details</p>
+        </div>
+        <form method="dialog"><button class="button button-outline-dark" type="submit">Close</button></form>
+      </div>
+      <dl class="employee-profile-details" id="employee-profile-details"></dl>
     </dialog>
     <footer class="portal-footer">© <span id="year"></span> Durai Construction</footer>
   </body>

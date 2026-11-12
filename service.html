@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#18372f" />
+    <meta name="description" content="Explore construction services from Durai Construction." />
+    <title>Our Services | Durai Construction</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="service.js"></script>
+  </head>
+  <body class="service-page">
+    <header class="site-header" id="top">
+      <a class="brand" href="index.html#top" aria-label="Durai Construction home">
+        <span class="brand-mark" aria-hidden="true">D<span>/</span></span>
+        <span class="brand-name">DURAI<span>CONSTRUCTION</span></span>
+      </a>
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav" aria-label="Open navigation"><span></span><span></span></button>
+      <nav class="main-nav" id="main-nav" aria-label="Main navigation">
+        <a href="index.html#services">Services</a>
+        <a href="index.html#project-tools">Project tools</a>
+        <a href="index.html#work">Our work</a>
+        <a href="index.html#about">About us</a>
+        <a href="careers.html">Careers</a>
+        <a href="portal.html">Client login</a>
+        <a class="nav-contact" href="index.html#contact">Start a project <span aria-hidden="true">↗</span></a>
+      </nav>
+    </header>
+
+    <main id="service-page" class="service-main" hidden>
+      <section class="service-hero" aria-labelledby="service-title">
+        <img class="service-hero-image" id="service-image" src="" alt="" />
+        <div class="hero-shade"></div>
+        <div class="service-hero-content">
+          <a class="service-back-link" href="index.html#services"><span aria-hidden="true">←</span> All services</a>
+          <p class="eyebrow light"><span></span><span id="service-category"></span></p>
+          <h1 id="service-title"></h1>
+          <p id="service-summary" class="service-hero-summary"></p>
+          <a class="button button-orange" href="index.html#contact">Discuss your project <span aria-hidden="true">↗</span></a>
+        </div>
+        <div class="hero-caption"><span id="service-number"></span><span>Grounded in craft. Focused on what lasts.</span></div>
+      </section>
+
+      <section class="service-overview section-pad service-scroll-section">
+        <div class="service-overview-copy service-reveal">
+          <p class="eyebrow"><span></span> A clear scope. A considered build.</p>
+          <h2 id="service-overview-title"></h2>
+          <p id="service-overview-text"></p>
+        </div>
+        <div class="service-scope service-reveal">
+          <span class="service-scope-label">SERVICE SCOPE</span>
+          <ul id="service-scope-list"></ul>
+        </div>
+      </section>
+
+      <section class="service-detail-band section-pad service-scroll-section">
+        <div class="service-detail-inner">
+          <div class="service-detail-heading service-reveal">
+            <p class="eyebrow light"><span></span> The right fit for your build</p>
+            <h2>Built around<br /><em>your project.</em></h2>
+          </div>
+          <div id="service-detail-list" class="service-detail-list"></div>
+        </div>
+      </section>
+
+      <section class="related-services section-pad service-scroll-section">
+        <div class="section-heading service-reveal">
+          <div><p class="eyebrow"><span></span> More from our team</p><h2>Explore our<br /><em>other services.</em></h2></div>
+          <a class="text-link dark-link" href="index.html#services">View all services <span aria-hidden="true">↗</span></a>
+        </div>
+        <div id="related-service-list" class="related-service-grid"></div>
+      </section>
+    </main>
+
+    <main id="service-not-found" class="service-not-found" hidden>
+      <p class="eyebrow"><span></span> Service not found</p>
+      <h1>Let's find the right<br /><em>way to build.</em></h1>
+      <p>That service page is unavailable. Browse our services to find the right fit for your project.</p>
+      <a class="button button-orange" href="index.html#services">Browse services <span aria-hidden="true">↗</span></a>
+    </main>
+
+    <footer class="site-footer">
+      <a class="brand footer-brand" href="index.html#top"><span class="brand-mark" aria-hidden="true">D<span>/</span></span><span class="brand-name">DURAI<span>CONSTRUCTION</span></span></a>
+      <p>Grounded in craft.<br />Focused on what lasts.</p>
+      <div class="footer-links"><a href="index.html#services">Services</a><a href="index.html#project-tools">Project tools</a><a href="index.html#work">Our work</a><a href="index.html#about">About</a><a href="careers.html">Careers</a><a href="portal.html">Client login</a><a href="index.html#contact">Contact</a></div>
+      <span class="copyright">© <span id="year"></span> Durai Construction</span>
+    </footer>
+  </body>
+</html>

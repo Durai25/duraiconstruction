@@ -231,3 +231,123 @@ for (const control of [modelType, modelFloors, modelAngle]) {
   control.addEventListener('change', renderBuilding);
 }
 renderBuilding();
+
+const planUse = document.querySelector('#plan-use');
+const planRooms = document.querySelector('#plan-rooms');
+const planRoomsLabel = document.querySelector('#plan-rooms-label');
+const planWidth = document.querySelector('#plot-width');
+const planDepth = document.querySelector('#plot-depth');
+const planParking = document.querySelector('#plan-parking');
+const planEntry = document.querySelector('#plan-entry');
+const planPriorities = document.querySelector('#plan-priorities');
+const planScene = document.querySelector('#floor-plan-scene');
+const planSummary = document.querySelector('#plan-summary');
+const planDescription = document.querySelector('#floor-plan-description');
+const createPlanButton = document.querySelector('#create-floor-plan');
+const planGenerationStatus = document.querySelector('#plan-generation-status');
+
+function renderFloorPlan() {
+  const width = Math.max(15, Math.min(300, Number(planWidth.value) || 40));
+  const depth = Math.max(15, Math.min(300, Number(planDepth.value) || 60));
+  const count = Number(planRooms.value);
+  const use = planUse.value;
+  const roomNames = use === 'home'
+    ? ['Living', 'Kitchen', ...Array.from({ length: count }, (_, index) => `Bedroom ${index + 1}`), 'Bath', 'Dining']
+    : use === 'rental'
+      ? ['Living / dining', 'Kitchen', ...Array.from({ length: count }, (_, index) => `Unit ${index + 1}`), 'Shared bath', 'Stair']
+      : use === 'office'
+        ? ['Reception', 'Open office', ...Array.from({ length: count }, (_, index) => `Office ${index + 1}`), 'Meeting', 'Services']
+        : use === 'retail'
+          ? ['Sales floor', 'Display', ...Array.from({ length: count }, (_, index) => `Shop ${index + 1}`), 'Store', 'WC']
+          : ['Shop / reception', 'Living / office', ...Array.from({ length: count }, (_, index) => `Room ${index + 1}`), 'Kitchen', 'Services'];
+  if (planParking.value !== 'none') roomNames.push(`${planParking.value} car parking`);
+
+  const left = 68;
+  const top = 42;
+  const planW = 384;
+  const planH = 236;
+  const columns = Math.ceil(Math.sqrt(roomNames.length * (planW / planH)));
+  const rows = Math.ceil(roomNames.length / columns);
+  const cellW = planW / columns;
+  const cellH = planH / rows;
+  planScene.replaceChildren();
+  planScene.append(makeSvgElement('rect', { x: 50, y: 34, width: 420, height: 254, fill: 'none', stroke: '#9aa69b', 'stroke-width': 1.5, 'stroke-dasharray': '5 4' }));
+  planScene.append(makeSvgElement('rect', { x: left, y: top, width: planW, height: planH, fill: '#fbfcf8', stroke: '#18372f', 'stroke-width': 5 }));
+
+  for (let index = 1; index < columns; index += 1) {
+    planScene.append(makeSvgElement('line', { x1: left + index * cellW, y1: top, x2: left + index * cellW, y2: top + planH, stroke: '#53665a', 'stroke-width': 2 }));
+  }
+  for (let index = 1; index < rows; index += 1) {
+    planScene.append(makeSvgElement('line', { x1: left, y1: top + index * cellH, x2: left + planW, y2: top + index * cellH, stroke: '#53665a', 'stroke-width': 2 }));
+  }
+  roomNames.forEach((name, index) => {
+    const col = index % columns;
+    const row = Math.floor(index / columns);
+    const text = makeSvgElement('text', { x: left + col * cellW + cellW / 2, y: top + row * cellH + cellH / 2, fill: '#263c34', 'font-size': cellW < 100 ? 9 : 11, 'font-family': 'sans-serif', 'text-anchor': 'middle', 'dominant-baseline': 'middle' });
+    text.textContent = name;
+    planScene.append(text);
+  });
+  planScene.append(makeSvgElement('line', { x1: left, y1: 302, x2: left + planW, y2: 302, stroke: '#8b958d', 'stroke-width': 1 }));
+  const widthLabel = makeSvgElement('text', { x: left + planW / 2, y: 320, fill: '#53665a', 'font-size': 11, 'font-family': 'sans-serif', 'text-anchor': 'middle' });
+  widthLabel.textContent = `${width} ft plot width`;
+  planScene.append(widthLabel);
+  const depthLabel = makeSvgElement('text', { x: 28, y: top + planH / 2, fill: '#53665a', 'font-size': 11, 'font-family': 'sans-serif', 'text-anchor': 'middle', transform: `rotate(-90 28 ${top + planH / 2})` });
+  depthLabel.textContent = `${depth} ft plot depth`;
+  planScene.append(depthLabel);
+  const entryX = planEntry.value === 'Left' ? left : planEntry.value === 'Right' ? left + planW : left + planW / 2;
+  const entryY = planEntry.value === 'Rear' ? top : planEntry.value === 'Front' ? top + planH : top + planH / 2;
+  planScene.append(makeSvgElement('circle', { cx: entryX, cy: entryY, r: 7, fill: '#e87531', stroke: '#fff', 'stroke-width': 2 }));
+  const entryLabel = makeSvgElement('text', { x: entryX, y: entryY - 12, fill: '#9c4d20', 'font-size': 9, 'font-family': 'sans-serif', 'text-anchor': 'middle' });
+  entryLabel.textContent = `${planEntry.value} entry`;
+  planScene.append(entryLabel);
+  const useName = planUse.options[planUse.selectedIndex].text;
+  planSummary.textContent = `${count} ${planRoomsLabel.textContent.toLowerCase()} · ${useName} · ${width} × ${depth} ft plot`;
+  if (planPriorities.value.trim()) planSummary.textContent += ` · Priority: ${planPriorities.value.trim()}`;
+  planDescription.textContent = `Approximate ground-floor ${useName.toLowerCase()} layout on a ${width} by ${depth} foot plot, with ${roomNames.join(', ')}.`;
+}
+
+planUse.addEventListener('change', () => {
+  const commercial = planUse.value !== 'home' && planUse.value !== 'rental';
+  planRoomsLabel.textContent = commercial ? 'Private rooms' : planUse.value === 'rental' ? 'Rental units' : 'Bedrooms';
+  renderFloorPlan();
+});
+for (const control of [planRooms, planWidth, planDepth, planParking, planPriorities, planEntry]) {
+  control.addEventListener('input', renderFloorPlan);
+  control.addEventListener('change', renderFloorPlan);
+}
+renderFloorPlan();
+
+createPlanButton.addEventListener('click', () => {
+  renderBuilding();
+  renderFloorPlan();
+  planGenerationStatus.textContent = 'Your concept is ready in the preview.';
+  conceptDialog.showModal();
+  selectConceptView('2d');
+  document.querySelector('#show-2d-view').focus();
+});
+
+const show2dView = document.querySelector('#show-2d-view');
+const show3dView = document.querySelector('#show-3d-view');
+const panel2d = document.querySelector('#viewer-2d-panel');
+const panel3d = document.querySelector('#viewer-3d-panel');
+const conceptDialog = document.querySelector('#concept-dialog');
+
+const previewElements = [document.querySelector('.plan-preview-heading'), document.querySelector('#floor-plan'), document.querySelector('.plan-disclaimer')];
+panel2d.append(...previewElements);
+previewElements.forEach((element) => { element.hidden = false; });
+conceptDialog.append(panel3d);
+
+function selectConceptView(view) {
+  const show2d = view === '2d';
+  panel2d.hidden = !show2d;
+  panel3d.hidden = show2d;
+  show2dView.setAttribute('aria-selected', String(show2d));
+  show3dView.setAttribute('aria-selected', String(!show2d));
+}
+
+show2dView.addEventListener('click', () => selectConceptView('2d'));
+show3dView.addEventListener('click', () => selectConceptView('3d'));
+document.querySelector('#close-concept-dialog').addEventListener('click', () => conceptDialog.close());
+conceptDialog.addEventListener('click', (event) => {
+  if (event.target === conceptDialog) conceptDialog.close();
+});

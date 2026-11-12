@@ -13,13 +13,21 @@ export function sortAttendanceBySection(records = []) {
   );
 }
 
-export function summarizeAttendance(records = []) {
+export function summarizeAttendance(records = [], employees = []) {
   const attendance = Array.isArray(records) ? records : [];
   const present = attendance.filter((record) => String(record.status || '').trim().toLowerCase() === 'present');
-  const absent = attendance.filter((record) => String(record.status || '').trim().toLowerCase() === 'absent');
+  const explicitlyAbsent = attendance.filter((record) => String(record.status || '').trim().toLowerCase() === 'absent');
   const leaveRecords = sortAttendanceBySection(
     attendance.filter((record) => String(record.status || '').trim().toLowerCase() === 'leave'),
   );
+  const recordedEmployeeNames = new Set(attendance
+    .map((record) => String(record.employeeName || '').trim().toLocaleLowerCase())
+    .filter(Boolean));
+  const unrecordedEmployees = (Array.isArray(employees) ? employees : [])
+    .filter((employee) => {
+      const name = String(employee.employeeName || '').trim().toLocaleLowerCase();
+      return name && !recordedEmployeeNames.has(name);
+    });
   const locations = new Map();
 
   for (const record of present) {
@@ -29,7 +37,7 @@ export function summarizeAttendance(records = []) {
 
   return {
     workingCount: present.length,
-    absentCount: absent.length,
+    absentCount: explicitlyAbsent.length + unrecordedEmployees.length,
     leaveCount: leaveRecords.length,
     dailySalarySpend: present.reduce((sum, record) => sum + toNumber(record.dailyWage), 0),
     locations: [...locations.entries()]

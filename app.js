@@ -16,6 +16,53 @@ let emailjsModule;
 
 document.querySelector('#year').textContent = new Date().getFullYear();
 
+const homepageSections = document.querySelectorAll('main > section');
+const revealSelectors = [
+  '.intro > .eyebrow',
+  '.intro-grid > *',
+  '.stat',
+  '.section-heading .eyebrow',
+  '.section-heading h2',
+  '.section-heading > p',
+  '.service-card',
+  '.tool-card',
+  '.project',
+  '.project-disclaimer',
+  '.approach-image',
+  '.approach-copy > *',
+  '.process-heading > *',
+  '.process-steps > article',
+  '.contact-intro',
+  '.inquiry-form',
+];
+
+if (homepageSections.length && !window.matchMedia('(prefers-reduced-motion: reduce)').matches && 'IntersectionObserver' in window) {
+  document.body.classList.add('has-scroll-reveals');
+
+  homepageSections.forEach((section) => {
+    section.dataset.scrollSection = '';
+    const revealItems = section.querySelectorAll(revealSelectors.join(','));
+    revealItems.forEach((item, index) => {
+      item.classList.add('scroll-reveal-item');
+      item.style.setProperty('--reveal-order', String(index % 8));
+    });
+
+    section.querySelectorAll('.service-card > img, .project img, .approach-image img').forEach((image) => {
+      image.classList.add('scroll-reveal-image');
+    });
+  });
+
+  const sectionObserver = new IntersectionObserver((entries, observer) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      entry.target.classList.add('is-visible');
+      observer.unobserve(entry.target);
+    });
+  }, { threshold: 0.08, rootMargin: '0px 0px -8% 0px' });
+
+  homepageSections.forEach((section) => sectionObserver.observe(section));
+}
+
 function disableContactLink(link) {
   link.removeAttribute('href');
   link.setAttribute('aria-disabled', 'true');

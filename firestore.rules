@@ -50,6 +50,10 @@ service cloud.firestore {
       );
     }
 
+    match /customers/{customerId} {
+      allow read: if isAdmin();
+    }
+
     match /inquiries/{inquiryId} {
       allow create: if validContact()
         && request.resource.data.keys().hasOnly([
@@ -66,10 +70,14 @@ service cloud.firestore {
         && request.resource.data.preferred_date.size() <= 20;
       allow read: if isAdmin();
       allow update: if isAdmin()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leadStatus', 'adminNotes'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leadStatus', 'adminNotes', 'followUpDate'])
         && request.resource.data.get('leadStatus', 'New') in ['New', 'Contacted', 'Qualified', 'Won', 'Closed']
         && request.resource.data.get('adminNotes', '') is string
-        && request.resource.data.get('adminNotes', '').size() <= 2000;
+        && request.resource.data.get('adminNotes', '').size() <= 2000
+        && (!('followUpDate' in request.resource.data)
+          || request.resource.data.followUpDate == null
+          || (request.resource.data.followUpDate is string
+            && request.resource.data.followUpDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')));
       allow delete: if false;
     }
 
@@ -87,8 +95,45 @@ service cloud.firestore {
     }
 
     match /projects/{projectId} {
+      function validProjectRecord() {
+        return request.resource.data.projectName is string
+          && request.resource.data.projectName.size() > 0
+          && request.resource.data.projectName.size() <= 120
+          && request.resource.data.customerId is string
+          && request.resource.data.customerId.size() > 0
+          && request.resource.data.siteAddress is string
+          && request.resource.data.siteAddress.size() > 0
+          && request.resource.data.siteAddress.size() <= 300
+          && request.resource.data.workStatus in ['Planning', 'In Progress', 'On Hold', 'Completed']
+          && request.resource.data.progressPercent is number
+          && request.resource.data.progressPercent >= 0
+          && request.resource.data.progressPercent <= 100
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.updatedBy == request.auth.uid
+          && (!('contractAmount' in request.resource.data)
+            || request.resource.data.contractAmount == null
+            || (request.resource.data.contractAmount is number && request.resource.data.contractAmount >= 0))
+          && (!('budget' in request.resource.data)
+            || request.resource.data.budget == null
+            || (request.resource.data.budget is number && request.resource.data.budget >= 0))
+          && (!('plotArea' in request.resource.data)
+            || request.resource.data.plotArea == null
+            || (request.resource.data.plotArea is number && request.resource.data.plotArea >= 0))
+          && (!('builtUpArea' in request.resource.data)
+            || request.resource.data.builtUpArea == null
+            || (request.resource.data.builtUpArea is number && request.resource.data.builtUpArea >= 0));
+      }
+
       allow read: if isAdmin() || (signedIn() && resource.data.customerId == request.auth.uid);
-      allow create, update, delete: if isAdmin();
+      allow create: if isAdmin()
+        && validProjectRecord()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time;
+      allow update: if isAdmin()
+        && validProjectRecord()
+        && request.resource.data.createdBy == resource.data.get('createdBy', request.auth.uid)
+        && request.resource.data.createdAt == resource.data.get('createdAt', request.time);
+      allow delete: if isAdmin();
 
       match /activity/{activityId} {
         allow read: if isAdmin() || isProjectCustomer(projectId);

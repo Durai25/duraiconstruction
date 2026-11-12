@@ -2,6 +2,10 @@
 
 Responsive civil construction website with EmailJS-delivered project and careers forms, plus optional Firestore archiving.
 
+## ERP expansion
+
+The existing admin/customer portals and workforce features are being extended incrementally. The current admin project master now includes generated project codes, project classification, site team, area/floors, planned and actual dates, budget, priority, GPS location, and status/client/date/search filters. See [ERP-ARCHITECTURE.md](ERP-ARCHITECTURE.md) for the collection model, record conventions, security boundary, and implementation sequence. That architecture catalog is a plan for unbuilt modules, not a claim that those modules already have working CRUD screens.
+
 Business contact details are centralized in `contact-config.js`. Add the confirmed phone number, WhatsApp number in international digits, business email, office address, and optional Google Maps place URL before publishing. The map embed is generated from the office address.
 
 ## Run locally
@@ -26,6 +30,8 @@ firebase login
 firebase use --add
 firebase deploy --only hosting,firestore:rules,storage
 ```
+
+Composite Firestore indexes are tracked in `firestore.indexes.json`; deploy them when a screen introduces an indexed query with `firebase deploy --only firestore:indexes`.
 
 When configured, project enquiries are archived in `inquiries` and career applications in `applications`. Public reads, updates and deletes are denied. An authenticated admin can read enquiries and update only their CRM follow-up status and internal note; career applications remain write-only. Before production, enable Firebase App Check and monitor the collections for abuse.
 

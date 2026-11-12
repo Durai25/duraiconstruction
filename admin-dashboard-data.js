@@ -13,6 +13,10 @@ export function summarizeAdminWorkspace(projects = [], leads = []) {
   const completedProjects = projectList.filter((project) => String(project.workStatus || '').trim().toLowerCase() === 'completed').length;
   const planningProjects = projectList.filter((project) => String(project.workStatus || '').trim().toLowerCase() === 'planning').length;
   const onHoldProjects = projectList.filter((project) => String(project.workStatus || '').trim().toLowerCase() === 'on hold').length;
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+  const delayedProjects = projectList.filter((project) => project.expectedCompletionDate && project.expectedCompletionDate < today && !['completed', 'on hold'].includes(String(project.workStatus || '').trim().toLowerCase())).length;
+  const estimatedCost = projectList.reduce((sum, project) => sum + toNumber(project.budget), 0);
+  const actualCost = projectList.reduce((sum, project) => sum + toNumber(project.actualCost), 0);
   const customerIds = new Set(
     projectList
       .map((project) => String(project.customerId || '').trim())
@@ -33,10 +37,13 @@ export function summarizeAdminWorkspace(projects = [], leads = []) {
     completedProjects,
     planningProjects,
     onHoldProjects,
+    delayedProjects,
     customerCount: customerIds.size,
     totalRevenue,
     totalCollected,
     outstanding: Math.max(totalRevenue - totalCollected, 0),
+    estimatedCost,
+    actualCost,
     averageProgress,
     wonLeads,
     pipelineLeads,
